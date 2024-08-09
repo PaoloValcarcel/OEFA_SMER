@@ -7,3 +7,5 @@ p_load(tidyverse, rio, here, dplyr, viridis, readxl, stringr,
 
 
 # Carga de información
+
+M2024 <-read_excel("D:/NUEVO D/LOCACION OEFA/Busqueda/Informes_2024.xlsx", sheet = "Componentes")
