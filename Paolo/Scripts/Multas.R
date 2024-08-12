@@ -229,7 +229,7 @@ datos_combinados <- bind_rows(
   mutate(D2024, Año = "2024")
 )
 
-# Crear el gráfico de violín
+# Creando gráfico tipo violín
 ggplot(datos_combinados, aes(x = Año, y = Prob_Detección, fill = Año)) +
   geom_violin(trim = FALSE,
               draw_quantiles = c(0.5, 0.80, 0.90)) +
