@@ -214,8 +214,6 @@ boxplot(sanciones_p80,
 #### Probabilidad de detección ####
 ###################################
 
-# Combinar los datos en un solo dataframe con una columna para el año
-
 D2022 <- as.data.frame(M2022F$Prob_Detección)
 colnames(D2022) <- "Prob_Detección"
 
