@@ -223,14 +223,14 @@ colnames(D2023) <- "Prob_Detección"
 D2024 <- as.data.frame(M2024F$Prob_Detección)
 colnames(D2024) <- "Prob_Detección"
 
-datos_combinados <- bind_rows(
+Datos <- bind_rows(
   mutate(D2022, Año = "2022"),
   mutate(D2023, Año = "2023"),
   mutate(D2024, Año = "2024")
 )
 
 # Creando gráfico tipo violín
-ggplot(datos_combinados, aes(x = Año, y = Prob_Detección, fill = Año)) +
+ggplot(Datos, aes(x = Año, y = Prob_Detección, fill = Año)) +
   geom_violin(trim = FALSE,
               draw_quantiles = c(0.5, 0.80, 0.90)) +
   labs(title = "Distribución de probabilidades de detección por Año",
@@ -241,3 +241,105 @@ ggplot(datos_combinados, aes(x = Año, y = Prob_Detección, fill = Año)) +
   theme(legend.position = "none",
         plot.title = element_text(hjust = 0.5)) 
 
+
+###########################
+#### Beneficio ilícito ####
+###########################
+
+B2022 <- M2022F %>% dplyr::select(Informes, Beneficio_ilícito, Colapsar)
+
+Max22 <- B2022 %>%
+  filter(Colapsar == "Máximo") %>%
+  group_by(Informes) %>%
+  summarize(Beneficio_ilícito = max(Beneficio_ilícito)) %>%
+  ungroup()
+
+Sum22 <- B2022 %>%
+  filter(Colapsar == "Suma") %>%
+  group_by(Informes) %>%
+  summarize(Beneficio_ilícito = sum(Beneficio_ilícito)) %>%
+  ungroup()
+
+B2022SN <- B2022 %>%
+  filter(!(Colapsar %in% c("Máximo", "Suma")))
+
+B2022SN$Colapsar <- NULL
+B2022F <- bind_rows(Max22, Sum22, B2022SN)
+
+
+B2023 <- M2023F %>% dplyr::select(Informes, Beneficio_ilícito, Colapsar)
+B2023$Beneficio_ilícito <- as.numeric(B2023$Beneficio_ilícito)
+
+Max23 <- B2023 %>%
+  filter(Colapsar == "Máximo") %>%
+  group_by(Informes) %>%
+  summarize(Beneficio_ilícito = max(Beneficio_ilícito)) %>%
+  ungroup()
+
+Sum23 <- B2023 %>%
+  filter(Colapsar == "Suma") %>%
+  group_by(Informes) %>%
+  summarize(Beneficio_ilícito = sum(Beneficio_ilícito)) %>%
+  ungroup()
+
+B2023SN <- B2023 %>%
+  filter(!(Colapsar %in% c("Máximo", "Suma")))
+
+B2023SN$Colapsar <- NULL
+B2023F <- bind_rows(Max23, Sum23, B2023SN)
+
+
+B2024 <- M2024F %>% dplyr::select(Informes, Beneficio_ilícito, Colapsar)
+
+Max24 <- B2024 %>%
+  filter(Colapsar == "Máximo") %>%
+  group_by(Informes) %>%
+  summarize(Beneficio_ilícito = max(Beneficio_ilícito)) %>%
+  ungroup()
+
+Sum24 <- B2024 %>%
+  filter(Colapsar == "Suma") %>%
+  group_by(Informes) %>%
+  summarize(Beneficio_ilícito = sum(Beneficio_ilícito)) %>%
+  ungroup()
+
+B2024SN <- B2024 %>%
+  filter(!(Colapsar %in% c("Máximo", "Suma")))
+
+B2024SN$Colapsar <- NULL
+B2024F <- bind_rows(Max24, Sum24, B2024SN)
+
+rm(Max22, Sum22, B2022SN, Max23, Sum23, B2023SN, Max24, Sum24, B2024SN)
+
+
+# Gráfico de cajas agrupado general
+Benef_ili <- list("2022" = B2022F$Beneficio_ilícito, 
+                  "2023" = B2023F$Beneficio_ilícito, 
+                  "2024" = B2024F$Beneficio_ilícito)
+
+boxplot(Benef_ili ,
+        main = "Boxplot del beneficio ilicito por años",
+        ylab = "",
+        col = c("lightblue", "lightgreen", "lightcoral"),  
+        pch = 19)  
+
+
+quantile(B2022F$Beneficio_ilícito, probs = c(0.80))
+quantile(B2023F$Beneficio_ilícito, probs = c(0.80))
+quantile(B2024F$Beneficio_ilícito, probs = c(0.80))
+
+B2022FO <- B2022F %>% filter(Beneficio_ilícito < 15.1474)
+B2023FO <- B2023F %>% filter(Beneficio_ilícito < 12.193)
+B2024FO <- B2024F %>% filter(Beneficio_ilícito < 4.985)
+
+
+# Gráfico de cajas para el percentil 80
+Benef_ili2 <- list("2022" = B2022FO$Beneficio_ilícito, 
+                  "2023" = B2023FO$Beneficio_ilícito, 
+                  "2024" = B2024FO$Beneficio_ilícito)
+
+boxplot(Benef_ili2 ,
+        main = "Boxplot del beneficio ilicito debajo del percentil 80",
+        ylab = "Por años",
+        col = c("lightblue", "lightgreen", "lightcoral"),  
+        pch = 19)  
