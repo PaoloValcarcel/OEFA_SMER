@@ -345,9 +345,9 @@ boxplot(Benef_ili2 ,
         pch = 19)  
 
 
-###########################
-#### Beneficio ilícito ####
-###########################
+#########################
+#### Tiempo en meses ####
+#########################
 
 T2022 <- as.data.frame(M2022F$T_meses)
 colnames(T2022) <- "T_meses"
@@ -375,7 +375,6 @@ Tiempos <- bind_rows(
   mutate(T2022F, Año = "2022"),
   mutate(T2023F, Año = "2023"),
   mutate(T2024F, Año = "2024"))
-
 
 
 # Creando gráfico tipo violín
