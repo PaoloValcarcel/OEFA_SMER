@@ -343,3 +343,60 @@ boxplot(Benef_ili2 ,
         ylab = "Por años",
         col = c("lightblue", "lightgreen", "lightcoral"),  
         pch = 19)  
+
+
+###########################
+#### Beneficio ilícito ####
+###########################
+
+T2022 <- as.data.frame(M2022F$T_meses)
+colnames(T2022) <- "T_meses"
+T2022$T_meses <- as.numeric(T2022$T_meses)
+
+T2023 <- as.data.frame(M2023F$T_meses)
+colnames(T2023) <- "T_meses"
+T2023$T_meses <- as.numeric(T2023$T_meses)
+
+T2024 <- as.data.frame(M2024F$T_meses)
+colnames(T2024) <- "T_meses"
+T2024$T_meses <- as.numeric(T2024$T_meses)
+
+
+quantile(T2022$T_meses, probs = c(0.80))
+quantile(T2023$T_meses, probs = c(0.80))
+quantile(T2024$T_meses, probs = c(0.80))
+
+T2022F <- T2022 %>% filter(T_meses < 42.74)
+T2023F <- T2023 %>% filter(T_meses < 43.8374)
+T2024F <- T2024 %>% filter(T_meses < 44.1998)
+
+
+Tiempos <- bind_rows(
+  mutate(T2022F, Año = "2022"),
+  mutate(T2023F, Año = "2023"),
+  mutate(T2024F, Año = "2024"))
+
+
+
+# Creando gráfico tipo violín
+ggplot(Tiempos, aes(x = Año, y = T_meses, fill = Año)) +
+  geom_violin(trim = FALSE,
+              draw_quantiles = c(0.5, 0.80, 0.90)) +
+  labs(title = "Distribución del tiempo en meses por Año",
+       x = "Año",
+       y = "Mediana, P80 y P90") +
+  theme_minimal() +
+  scale_fill_manual(values = c("lightblue", "lightgreen", "lightcoral")) +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5)) 
+
+# Gráfico de cajas para el percentil 80
+T_Meses <- list("2022" = T2022F$T_meses, 
+                "2023" = T2023F$T_meses, 
+                "2024" = T2024F$T_meses)
+
+boxplot(T_Meses,
+        main = "Boxplot del tiempo en meses debajo del percentil 80",
+        ylab = "Por años",
+        col = c("lightblue", "lightgreen", "lightcoral"),  
+        pch = 19)  
