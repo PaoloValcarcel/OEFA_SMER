@@ -25,9 +25,9 @@ M2024F<- M2024 %>%
   filter(!Hecho_imputado %in% c("Multa coercitiva", "Reconsideración", 
                                 "Medida correctiva", "Informe de enmienda"))
 
-#########################
-### Sanciones totales ###
-#########################
+####################################
+### Sanciones totales por informe###
+####################################
 
 Sancion22  <- M2022F  %>%
   group_by(Informes) %>%
@@ -40,6 +40,8 @@ Sancion23  <- M2023F  %>%
 Sancion24  <- M2024F  %>%
   group_by(Informes) %>%
   summarize(suma_valor = max(Sancion_total))
+
+#En esta parte voy a unir todos los años en un mismo data frame
 
 Sancion22$suma_valor <- as.numeric(as.character(Sancion22$suma_valor))
 Sancion23$suma_valor <- as.numeric(as.character(Sancion23$suma_valor))
