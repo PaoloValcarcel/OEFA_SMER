@@ -244,14 +244,23 @@ ggplot(Datos, aes(x = Año, y = Prob_Detección, fill = Año)) +
 # Creando histograma
 ggplot(Datos, aes(x = Prob_Detección, fill = Año)) +
   geom_histogram(binwidth = 0.05, color = "black", alpha = 0.7, position = "dodge") +
-  labs(title = "Distribución de Probabilidad de Detección por Año",
-       x = "Probabilidad de Detección",
+  labs(x = "Probabilidad de Detección",
        y = "Frecuencia") +
   theme_minimal() +
   scale_fill_manual(values = c("lightblue", "lightgreen", "lightcoral")) +
-  theme(plot.title = element_text(hjust = 0.5),
-        panel.grid = element_blank())
+  theme(plot.title = element_text(hjust = 0.5))
 
+ggplot(Datos, aes(x = Año, y = Prob_Detección, fill = Año)) +
+  geom_boxplot(outlier.colour = "red", outlier.shape = 16, outlier.size = 2, fill = "goldenrod") +
+  labs(title = "Distribución de Probabilidad de Detección por Año",
+       x = "Año",
+       y = "Probabilidad de Detección") +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5),
+    panel.grid = element_blank() # Elimina el grid de fondo
+  )
 
 ###########################
 #### Beneficio ilícito ####
