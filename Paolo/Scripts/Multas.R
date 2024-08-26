@@ -1,5 +1,3 @@
-#comentario de prueba de Oscar
-
 rm(list = ls())
 
 require(pacman)
@@ -240,7 +238,19 @@ ggplot(Datos, aes(x = Año, y = Prob_Detección, fill = Año)) +
   theme_minimal() +
   scale_fill_manual(values = c("lightblue", "lightgreen", "lightcoral")) +
   theme(legend.position = "none",
-        plot.title = element_text(hjust = 0.5)) 
+        plot.title = element_text(hjust = 0.5),
+        panel.grid = element_blank())
+
+# Creando histograma
+ggplot(Datos, aes(x = Prob_Detección, fill = Año)) +
+  geom_histogram(binwidth = 0.05, color = "black", alpha = 0.7, position = "dodge") +
+  labs(title = "Distribución de Probabilidad de Detección por Año",
+       x = "Probabilidad de Detección",
+       y = "Frecuencia") +
+  theme_minimal() +
+  scale_fill_manual(values = c("lightblue", "lightgreen", "lightcoral")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid = element_blank())
 
 
 ###########################
