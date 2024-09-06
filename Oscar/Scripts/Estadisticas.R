@@ -1,16 +1,20 @@
-
+rm(list = ls())
 getwd()
 
 #Asignamos la carpeta donde trabajaremos
-setwd("D:/OEFA/Metodología de multas OEFA/analisis/outputs")
+#setwd("D:/OEFA/Metodología de multas OEFA/analisis/outputs")
 
 # Carga de información
 
 
 library(readxl)
-M2022 <- read_excel("D:/OEFA/Metodología de multas OEFA/analisis/Informes_2022.xlsx", sheet = "Componentes")
-M2023 <- read_excel("D:/OEFA/Metodología de multas OEFA/analisis/Informes_2023.xlsx", sheet = "Componentes")
-M2024 <- read_excel("D:/OEFA/Metodología de multas OEFA/analisis/Informes_2024.xlsx", sheet = "Componentes")
+#M2022 <- read_excel("D:/OEFA/Metodología de multas OEFA/analisis/Informes_2022.xlsx", sheet = "Componentes")
+#M2023 <- read_excel("D:/OEFA/Metodología de multas OEFA/analisis/Informes_2023.xlsx", sheet = "Componentes")
+#M2024 <- read_excel("D:/OEFA/Metodología de multas OEFA/analisis/Informes_2024.xlsx", sheet = "Componentes")
+
+M2022 <-read_excel("D:/NUEVO D/LOCACION OEFA/Busqueda/Informes_2022.xlsx", sheet = "Componentes")
+M2023 <-read_excel("D:/NUEVO D/LOCACION OEFA/Busqueda/Informes_2023.xlsx", sheet = "Componentes")
+M2024 <-read_excel("D:/NUEVO D/LOCACION OEFA/Busqueda/Informes_2024.xlsx", sheet = "Componentes")
 
 # Tratamiento de información
 
@@ -45,7 +49,8 @@ df_unido$imp <- paste(as.character(df_unido$ID), as.character(df_unido$Num_Imput
 df_unido <- df_unido %>% rename(Expediente = Expedientes)
 
 #Importamos RUIAS
-ruias <- read_excel("D:/OEFA/Metodología de multas OEFA/analisis/RUIAS-CSEP.xlsx")
+#ruias <- read_excel("D:/OEFA/Metodología de multas OEFA/analisis/RUIAS-CSEP.xlsx")
+ruias <- read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Oscar/Scripts/RUIAS-CSEP.xlsx")
 names(ruias)
 
 #Generamos la base que requerimos
@@ -60,6 +65,48 @@ df_unido2 <- merge(df_unido, sectores, by="Expediente", all.x = TRUE)
 
 #Quitamos los duplicados en caso los haya
 df_unido2 <- distinct(df_unido2)
+########################################################################
+General <- subset(df_unido2, !is.na(sector))
+
+# Histograma
+ggplot(data = General, aes(x = Prob_Detección, fill = sector)) +
+  geom_histogram(position = "dodge", binwidth = 0.12, color = "black") +  
+  labs(x = "Probabilidad de detección",             
+       y = "Frecuencia") +                            
+  theme_minimal() +
+  theme(legend.position = "bottom",          
+        legend.title = element_blank())
+
+
+General_Hidrocarburos <- subset(General, sector == "Hidrocarburos")
+
+# Gráfico hidrocarburos
+ggplot(data = General_Hidrocarburos, aes(x = Prob_Detección, fill = factor(year))) +
+  geom_histogram(position = "dodge", binwidth = 0.12, color = "black") +  
+  labs(x = "Probabilidad de detección",             
+       y = "Frecuencia", 
+       fill = "Año") +                            
+  theme_minimal() +
+  theme(legend.position = "bottom",          
+        legend.title = element_blank())
+
+
+General_Residuos <- subset(General, sector == "Residuos Sólidos")
+
+# Gráfico de residuos sólidos
+ggplot(data = General_Residuos, aes(x = Prob_Detección, fill = factor(year))) +
+  geom_histogram(position = "dodge", binwidth = 0.12, color = "black") +  
+  labs(x = "Probabilidad de detección",             
+       y = "Frecuencia", 
+       fill = "Año") +                            
+  theme_minimal() +
+  theme(legend.position = "bottom",          
+        legend.title = element_blank())
+
+
+library(writexl) 
+write_xlsx(df_unido2, path = "D:/NUEVO D/LOCACION OEFA/Bases/Base_Conjunta.xlsx")
+########################################################################
 
 ########################################
 #Generamos las estadísticas descriptivas

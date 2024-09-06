@@ -23,6 +23,15 @@ M2024F<- M2024 %>%
   filter(!Hecho_imputado %in% c("Multa coercitiva", "Reconsideración", 
                                 "Medida correctiva", "Informe de enmienda"))
 
+M2022F$Año <-2022
+M2023F$Año <-2023
+M2024F$Año <-2024
+
+General <- rbind(M2022F,M2023F,M2024F)
+
+General <- subset(General, !is.na(Monto))
+
+
 #########################
 ### Sanciones totales ###
 #########################
