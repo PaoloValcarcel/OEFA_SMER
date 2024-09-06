@@ -1,0 +1,237 @@
+
+
+rm(list = ls())
+
+# Carga de librerías
+
+#install.packages("campfin")
+#install.packages("openxlsx")
+#install.packages("dplyr")
+#install.packages("readxl")
+#install.packages("psych")
+
+library(psych)
+library(dplyr)
+library(readxl)
+library(campfin)
+library(openxlsx)
+
+#Asignamos la carpeta donde trabajaremos
+getwd()
+setwd("C:/Documentos/OEFA/Metodologia multas")
+
+#Importamos la información
+M2022 <- read_excel(fs::path_wd("Informes_2022.xlsx"), sheet = "Componentes")
+M2023 <- read_excel(fs::path_wd("Informes_2023.xlsx"), sheet = "Componentes")
+M2024 <- read_excel(fs::path_wd("Informes_2024.xlsx"), sheet = "Componentes")
+
+#Juntamos las bases de datos
+df_general <- rbind(M2022, M2023, M2024)
+
+#Eliminamos las imputaciones que no deben considerarse
+
+M2022F<- M2022 %>%
+  filter(!Hecho_imputado %in% c("Reconsideración", "Multa coercitiva", "Sin especificar"))
+
+M2023F<- M2023 %>%
+  filter(!Hecho_imputado %in% c("Reconsideración", "multa coercitiva"))
+
+M2024F<- M2024 %>%
+  filter(!Hecho_imputado %in% c("Multa coercitiva", "Reconsideración", 
+                                "Medida correctiva", "Informe de enmienda"))
+
+
+#####Estadística de las infracciones 
+####################################
+
+#Creamos los años en los que se generaron la información
+M2022F <- M2022F %>% mutate( year = 2022)
+M2023F <- M2023F %>% mutate( year = 2023)
+M2024F <- M2024F %>% mutate( year = 2024)
+
+#Unimos las bases de datos
+df_unido <- rbind(M2022F,M2023F,M2024F)
+
+#Generamos una variable con números consecutivos usando el operador :
+df_unido$numeracion <- 1:nrow(df_unido)
+
+#Generamos un código para las imputaciones analizadas
+names(df_unido)
+df_unido$imp <- paste(as.character(df_unido$ID), as.character(df_unido$Num_Imputacion),as.character(df_unido$year), sep = "-")
+df_unido <- df_unido %>% rename(Expediente = Expedientes)
+
+#Importamos RUIAS
+ruias <- read_excel(fs::path_wd("RUIAS-CSEP.xlsx"))
+names(ruias)
+
+#Generamos la base que requerimos
+sectores <- ruias[, c("Expediente", "Sector económico", "Administrado")]
+sectores <- sectores %>% rename(sector =`Sector económico`)
+sectores <- distinct(sectores)
+
+sectores <- sectores %>% mutate(sector = ifelse(sector == "RESIDUOS SÓLIDOS" ,"Residuos Sólidos", sector))
+table(sectores$sector)
+
+df_unido2 <- merge(df_unido, sectores, by="Expediente", all.x = TRUE)
+
+#Quitamos los duplicados en caso los haya
+df_unido2 <- distinct(df_unido2)
+
+#Generamos una variable de identificación
+names(df_unido2)
+df_unido2$identificador <- paste(as.character(df_unido$Informes), as.character(df_unido$Num_Imputacion), sep = "-")
+
+
+########################################
+#Generamos las estadísticas descriptivas
+########################################
+
+#Sanción por imputación
+
+#Convertimos la variable Multa en numérica
+class(df_unido2$Multa)
+df_unido2$Multa <- as.numeric(df_unido2$Multa)
+
+sanciones <- df_unido2 %>% group_by(imp) %>% summarise(monto = min(Multa))
+class(sanciones$monto)
+
+#Unimos con las información deseada y nos quedamos solo con la información deseada
+sanciones1 <- merge(sanciones[, c("imp", "monto")], df_unido2[, c("imp", "sector")], by = "imp", all.x = TRUE)
+sanciones2 <- sanciones1 %>% distinct(imp, monto, .keep_all = TRUE)
+
+#Resumen de información para una variable
+summary(sanciones2$monto)
+names(sanciones2)
+
+#Resumen por sectores
+resumen <- sanciones2 %>%
+  group_by(sector) %>%
+  summarise(
+    Min = min(monto),
+    Q1 = quantile(monto, 0.25),
+    Mediana = median(monto),
+    Media = mean(monto),
+    Q3 = quantile(monto, 0.75),
+    Max = max(monto)
+  )
+
+print(resumen)
+resu <- table(sanciones2$sector)
+
+#Segunda opción
+describeBy(sanciones$monto, group = sanciones$sector)
+
+#Realizamos un gráfico de cajas
+boxplot(sanciones2$monto ~ sanciones2$sector, main = "Sanciónes impuestas por imputación",
+        ylab = "UIT", xlab="Costo Evitado", col = "#FBB500", horizontal = FALSE,
+        outline = FALSE)
+
+
+#Realizamos un histograma
+hist(sanciones2$monto, freq= TRUE, breaks = 50,
+     xlab = "Monto de Sancion (UIT)", ylab = "Frecuencia", col= "#8CCD3A")
+grid(nx = NA, ny = NULL, lty = 2, col = "gray", lwd = 1)
+
+
+#Para aquellos datos mayor al percentil 90
+percentil_90 <- quantile(sanciones2$monto, 0.90)
+datos_filtrados <- sanciones2$monto[sanciones2$monto < percentil_90]
+
+#Realizamos un histograma
+hist(datos_filtrados, freq= TRUE, breaks = 50,
+     xlab = "Monto de Sancion (UIT)", ylab = "Frecuencia", col= "#8CCD3A")
+grid(nx = NA, ny = NULL, lty = 2, col = "gray", lwd = 1)
+
+#Para aquellos datos mayor al percentil 80
+percentil_80 <- quantile(sanciones2$monto, 0.80)
+datos_filtrados2 <- sanciones2$monto[sanciones2$monto < percentil_80]
+
+#Realizamos un histograma
+hist(datos_filtrados2, freq= TRUE, breaks = 50,
+     main = "Histograma de sanciones impuestas por imputación", xlab = "Monto de Sancion (UIT)", 
+     ylab = "Frecuencia", col= "#8CCD3A")
+grid(nx = NA, ny = NULL, lty = 2, col = "gray", lwd = 1)
+
+
+#Costos evitados
+################
+
+names(df_unido2)
+costo_evi <- df_unido2 %>% group_by(imp) %>% summarise(monto = min(Beneficio_ilícito))
+
+#Unimos con las información deseada y nos quedamos solo con la información deseada
+costo_evi <- merge(costo_evi[, c("imp", "monto")], df_unido2[, c("imp", "sector")], by = "imp", all.x = TRUE)
+costo_evi <- costo_evi  %>% distinct(imp, monto, .keep_all = TRUE)
+
+class(costo_evi$monto)
+costo_evi$monto <- as.numeric(costo_evi$monto)
+
+#Resumen de estadísticas
+names(costo_evi)
+
+resumen2 <- costo_evi %>%
+  group_by(sector) %>%
+  summarise(
+    Min = min(monto),
+    Q1 = quantile(monto, 0.25),
+    Mediana = median(monto),
+    Media = mean(monto),
+    Q3 = quantile(monto, 0.75),
+    Max = max(monto)
+  )
+
+#Realizamos un gráfico de cajas
+boxplot(costo_evi$monto ~ costo_evi$sector, main = "Beneficio ilícito por imputación",
+        ylab = "UIT", xlab="Costo Evitado", col = "#0BC7E0", horizontal = FALSE,
+        outline = FALSE)
+
+#Probabilidad de detección
+boxplot(df_unido2$Prob_Detección ~ df_unido2$sector)
+
+#Probabilidad de detección
+
+conteo2 <- table(df_unido2$Prob_Detección)
+bp2 <- barplot(conteo2, ylim=c(0,1000), main = "Niveles de proabilidad de detección mas frecuentes",
+               xlab = "Probabilidad de detección", ylab = "Frecuencia", col = "#144AA7")
+text(x = bp2, y =conteo2, label=conteo2, pos=3, cex = 1)
+
+
+#Factores de graduación de sanciones
+###################################
+
+#Importamos la información
+
+F2022 <- read_excel(fs::path_wd("Informes_2022.xlsx"), sheet = "Graduacion")
+F2023 <- read_excel(fs::path_wd("Informes_2022.xlsx"), sheet = "Graduacion")
+F2024 <- read_excel(fs::path_wd("Informes_2022.xlsx"), sheet = "Graduacion")
+
+#Unimos las bases de datos
+df_factores <- rbind(F2022,F2023,F2024)
+
+#Revisamos las imputaciones que no deben ser consideradas
+#Pendiente de revisión
+df_factoresvf <- df_factores %>% filter(!Categoria_FA %in% c("Reconsideración", "Multa coercitiva"))
+
+#Eliminamos las aquellos factores que no se consideraron
+df_factoresvf <- df_factoresvf %>% filter(!is.na(Factores_agravantes))
+
+#Breve resumen de los factores utilizados
+table(df_factoresvf$Factores_agravantes)
+
+#Graficamos
+conteo <- table(df_factoresvf$Factores_agravantes)
+bp1 <- barplot(conteo, ylim=c(0,400), main = "Recurrencia de los factores atenuantes y agravantes",
+               xlab = "Factores", ylab = "Frecuencia", col = "#8CCD3A")
+text(x = bp1, y =conteo, label=conteo, pos=3, cex = 1)
+
+
+#Exportamos la base de datos
+
+write.xlsx(df_factores, file = "factores.xlsx")
+write.xlsx(df_unido2, file = "dfunido.xlsx")
+
+#Otros líneas de código auxiliares
+#df_unido_vf <- merge(sanciones[, c("imp", "multa")], df_unido[, c("imp", "Expediente")], by = "imp")
+
+
+
