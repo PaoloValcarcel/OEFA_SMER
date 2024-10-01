@@ -1,8 +1,9 @@
 rm(list = ls())
 
 require(pacman)
-p_load(tidyverse, rio, here, dplyr, viridis, readxl, stringr, RColorBrewer, ggcorrplot,  
-        flextable, officer, classInt, foreign, stargazer, sf, mapview, leaflet)
+p_load(foreign, tidyverse, rio, here, dplyr, viridis, readxl, stringr, RColorBrewer, ggcorrplot,  
+        flextable, officer, classInt, foreign, stargazer, sf, mapview, leaflet, writexl, lmtest,
+       tseries, car, haven, officer)
 
 
 # Carga de información
@@ -56,6 +57,30 @@ FINAL <- FINAL %>%
 FINAL$SectorEco <- sapply(FINAL$SectorEco, function(x) {
   paste(toupper(substr(x, 1, 1)), tolower(substr(x, 2, nchar(x))), sep = "")
 })
+
+## Creando la variable de ocurrencia
+Unique <- FINAL %>%
+  distinct(year, Expediente, RUC)
+
+# Contando la recurrencia de cada RUC (administrado) por año
+Recurrencia <- Unique %>%
+  group_by(year, RUC) %>%
+  summarise(Recurrencia = n()) %>%
+  ungroup()
+
+# Uniendo el conteo con los expedientes únicos por año
+Colapsado <- Recurrencia %>%
+  left_join(Unique, by = c("year", "RUC")) %>%
+  dplyr::select(year, Expediente, Recurrencia)
+
+#library(writexl)
+#write_xlsx(FINAL, "D:/NUEVO D/LOCACION OEFA/Bases/FINAL.xlsx")
+
+FINAL$Index <- paste(FINAL$year, FINAL$Expediente, sep = "_")
+Colapsado$Index <- paste(Colapsado$year, Colapsado$Expediente, sep = "_")
+Filtro <- Colapsado[, c("Index", "Recurrencia")]
+FINAL <- merge(FINAL, Filtro, by = "Index", all.x = TRUE)
+rm(Colapsado, Filtro, Recurrencia, Unique)
 
 ### ------- Estadísticas descriptivas ------- ###
 
@@ -321,46 +346,109 @@ Matriz2 <- cor(Num2, use = "complete.obs")
 print(Matriz1)
 print(Matriz2)
 
-# Apelación por probabilidad de detección
-
-table(FINAL$Apelacion)
-
-table(FINAL$Incumplimiento1)
-
-
 ### ------ Modelo econométrico ------ ###
 FINAL$InicioSup <- as.numeric(FINAL$InicioSup)
 FINAL$FinSup <- as.numeric(FINAL$FinSup)
 FINAL$InicioSup <- as.Date(FINAL$InicioSup, origin = "1899-12-30")
 FINAL$FinSup <- as.Date(FINAL$FinSup, origin = "1899-12-30")
-
 FINAL$DuracionSup <- as.numeric(FINAL$FinSup - FINAL$InicioSup)
+
+
+FINAL <- FINAL %>%
+  mutate(Incumplimiento1 = case_when(
+    Incumplimiento1 == 'Incumplimiento de Límites Máximos Permisibles en efluentes' ~ 'Incumplimiento LMP',
+    Incumplimiento1 == 'Incumplimiento de Límites Máximos Permisibles en emisiones' ~ 'Incumplimiento LMP',
+    Incumplimiento1 == 'Incumplimiento del Instrumento de Gestión Ambiental' ~ 'Incumplimiento IGA',
+    Incumplimiento1 == 'No contar con Instrumentos de Gestión Ambiental' ~ 'Incumplimiento IGA',
+    Incumplimiento1 == 'Incumplimiento de medidas administrativas (medidas cautelares, medidas correctivas y preventivas)' ~ 'Incumplimiento de medidas administrativas',
+    Incumplimiento1 == 'No brindar información, presentar información inexacta o fuera de plazo' ~ 'No presentó información',
+    Incumplimiento1 == 'No efectuar monitoreos (en el plazo, alcance y/o frecuencia)' ~ 'No efectuar monitoreos',
+    Incumplimiento1 == 'Obstaculizar o impedir labores de supervisión y/o fiscalización' ~ 'Obstaculizar o impedir labores',
+    TRUE ~ Incumplimiento1))
+
+
+table(FINAL$Incumplimiento1)
+
+BD <- read_dta("C:/Users/Paolo/Desktop/Sunat/S192021.dta")
+colnames(FINAL)[colnames(FINAL) == "RUC"] <- "ruc"
+BD$ruc <- as.character(BD$ruc)
+FINAL <- left_join(x = FINAL, y = BD, by="ruc")
 
 # OLS de corte transversal (2024)
 A2022 <- FINAL %>% filter(year==2022)
 A2023 <- FINAL %>% filter(year==2023)
 A2024 <- FINAL %>% filter(year==2024)
 
-Modelo22 <- lm(Sancion_total ~ Costo_evitado + Prob_Detección + factor(sector)
-               + T_meses + DuracionSup, data = A2022)
-Modelo23 <- lm(Sancion_total ~ Costo_evitado + Prob_Detección + factor(sector)
-               + T_meses + DuracionSup, data = A2023)
-Modelo24 <- lm(Sancion_total ~ Costo_evitado + Prob_Detección + factor(sector)
-               + T_meses + DuracionSup, data = A2024)
+#Modelo22 <- lm(log(Sancion_total) ~ log(Costo_evitado) + Prob_Detección + factor(sector)
+#               + T_meses + DuracionSup + Recurrencia + factor(descripcion_contri) + 
+#                 factor(tamano_ven), data = A2022)
 
-stargazer(Modelo22, Modelo23, Modelo24, type = "text", title = "Resultados de los Modelos de Regresión")
+Modelo22 <- lm(log(Sancion_total) ~ log(Costo_evitado) + Prob_Detección + factor(sector)
+               + T_meses + DuracionSup + Recurrencia  + factor(tamano_ven) + 
+                 factor(Incumplimiento1), data = A2022)
+
+# H0: No hay error de especificación
+resettest(Modelo22)
+# QQplot: Desviación de los residuos
+qqPlot(Modelo22$residuals)
+# H0: distribuyen normal los residuos
+jarque.bera.test(Modelo22$residuals)
+# H0: Homocedasticidad
+bptest(Modelo22)
+
+#Modelo23 <- lm(Sancion_total ~ Costo_evitado + Prob_Detección + factor(sector)
+#               + T_meses + DuracionSup + Recurrencia + factor(descripcion_contri) + 
+#                 factor(tamano_ven), data = A2023)
+
+Modelo23 <- lm(log(Sancion_total) ~ log(Costo_evitado) + Prob_Detección + factor(sector)
+               + T_meses + DuracionSup + Recurrencia  + factor(tamano_ven) + 
+                 factor(Incumplimiento1), data = A2023)
+
+# H0: No hay error de especificación
+resettest(Modelo23)
+# QQplot: Desviación de los residuos
+qqPlot(Modelo23$residuals)
+# H0: distribuyen normal los residuos
+jarque.bera.test(Modelo23$residuals)
+# H0: Homocedasticidad
+bptest(Modelo23)
+
+
+#Modelo24 <- lm(Sancion_total ~ Costo_evitado + Prob_Detección + factor(sector)
+#               + T_meses + DuracionSup + Recurrencia + factor(descripcion_contri) + 
+#                 factor(tamano_ven), data = A2024)
+
+Modelo24 <- lm(log(Sancion_total) ~ log(Costo_evitado) + Prob_Detección + factor(sector)
+               + T_meses + DuracionSup + Recurrencia  + factor(tamano_ven) + 
+                 factor(Incumplimiento1), data = A2024)
+
+# H0: No hay error de especificación
+resettest(Modelo24)
+# QQplot: Desviación de los residuos
+qqPlot(Modelo24$residuals)
+# H0: distribuyen normal los residuos
+jarque.bera.test(Modelo24$residuals)
+# H0: Homocedasticidad
+bptest(Modelo24)
+
+stargazer(Modelo22, Modelo23, Modelo24, type = "text",  out="D:/NUEVO D/LOCACION OEFA/Informes/Segunda OS/Informe 01/Resultados/Modelo.tex")
+
+# Elección discreta
+table(A2022$Prob_Detección)
+Logit <- glm(Prob_Detección ~ factor(sector) + DuracionSup, data = A2022, family = binomial(link = "logit"))
+stargazer(Logit, type = "text")
 
 # Panel data
 
 #library(plm)
 
-#Panel <- pdata.frame(FINAL, index = c("ID","year"))
+#Panel <- pdata.frame(FINAL, index = c("Num_Imputacion","year"))
 
 # Eliminar filas con NA en las variables de índice
-#Panel <- Panel[complete.cases(Panel$ID, Panel$year), ]
+#Panel <- Panel[complete.cases(Panel$Num_Imputacion, Panel$year), ]
 
 # Eliminar duplicados
-#Panel <- Panel[!duplicated(Panel[, c("ID", "year")]), ]
+#Panel <- Panel[!duplicated(Panel[, c("Num_Imputacion", "year")]), ]
 
 #Pooled <- plm(Sancion_total ~ Costo_evitado + Prob_Detección + factor(sector), data = Panel, model = "pooling")
 #FE <- plm(Sancion_total ~ Costo_evitado + Prob_Detección + factor(sector), data = Panel, model = "within")
