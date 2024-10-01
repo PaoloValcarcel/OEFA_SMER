@@ -11,7 +11,6 @@ p_load(foreign, tidyverse, rio, here, dplyr, viridis, readxl, stringr, RColorBre
 Consolidado <-read_excel("D:/NUEVO D/LOCACION OEFA/Bases/dfunido.xlsx", sheet = "Sheet 1")
 RUIAS <-read_excel("D:/NUEVO D/LOCACION OEFA/Bases/RUIAS-CSEP.xlsx", sheet = "RUIAS")
 
-
 # Quitando las observaciones que no usaremos del consolidado
 
 CFinal <- Consolidado %>%
@@ -19,6 +18,9 @@ CFinal <- Consolidado %>%
 
 colnames(CFinal)[colnames(CFinal) == "ID2"] <- "Index"
 CFinal$Index <- as.character(CFinal$Index)
+
+#Quitar las sanciones preliminares
+
 
 # Seleccionando las variables a usar
 names(RUIAS)
