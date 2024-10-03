@@ -8,8 +8,8 @@ p_load(foreign, tidyverse, rio, here, dplyr, viridis, readxl, stringr, RColorBre
 
 # Carga de información
 
-Consolidado <-read_excel("D:/NUEVO D/LOCACION OEFA/Bases/dfunido.xlsx", sheet = "Sheet 1")
-RUIAS <-read_excel("D:/NUEVO D/LOCACION OEFA/Bases/RUIAS-CSEP.xlsx", sheet = "RUIAS")
+Consolidado <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/dfunido.xlsx", sheet = "Sheet 1")
+RUIAS <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/RUIAS-CSEP.xlsx", sheet = "RUIAS")
 
 
 # Quitando las observaciones que no usaremos del consolidado
@@ -57,6 +57,13 @@ FINAL <- FINAL %>%
 FINAL$SectorEco <- sapply(FINAL$SectorEco, function(x) {
   paste(toupper(substr(x, 1, 1)), tolower(substr(x, 2, nchar(x))), sep = "")
 })
+
+MULTASPAG <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/Multas_Pagadas.xlsx", sheet = "Hoja1")
+INFORMES <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/Consolidado_Informes.xlsx", sheet = "CONSOLIDADO")
+
+###################################
+#### Estadísticas Descriptivas ####
+###################################
 
 ## Creando la variable de ocurrencia
 Unique <- FINAL %>%
