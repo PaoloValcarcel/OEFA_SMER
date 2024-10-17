@@ -184,3 +184,43 @@ grid(nx = NA, ny = NULL, lty = 2, col = "gray", lwd = 1)
 
 boxplot(df_unido2$Prob_Detección ~ df_unido2$sector)
 
+
+# Gráfico Informe
+library(dplyr)
+library(ggplot2)
+library(viridis)
+
+BD <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/Excluidos.xlsx", sheet = "Consolidado")
+
+BD$Unos <- 1
+BDF <- BD %>%
+       group_by(Hecho_imputado , Año) %>%
+       summarize(total = sum(Unos))
+
+ggplot(BDF, aes(x = Año, y = total, fill = Hecho_imputado)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Totales por Categoría de Hecho Imputado y Año",
+       x = "Año",
+       y = "Total",
+       fill = "Hecho Imputado") +
+  theme_minimal()
+
+ggplot(BDF, aes(x = Año, y = total, fill = Hecho_imputado)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = total), vjust = -0.5, position = position_dodge(0.9), size = 3.5) +
+  scale_fill_viridis_d() +  
+  labs(title = "Totales por Categoría de Hecho Imputado y Año",
+       x = "Año",
+       y = "Total",
+       fill = "Hecho Imputado") +
+  theme_minimal()
+
+ggplot(BDF, aes(x = Año, y = total, fill = Hecho_imputado)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = total), vjust = -0.5, position = position_dodge(0.9), size = 3.5) +
+  scale_fill_viridis_d() +  
+  labs(x = "Año",
+       y = "Total") +
+  theme_minimal() +
+  theme(legend.position = "bottom", 
+        legend.title = element_blank())
