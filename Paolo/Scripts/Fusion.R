@@ -22,9 +22,6 @@ CFinal <- Consolidado %>%
 colnames(CFinal)[colnames(CFinal) == "ID2"] <- "Index"
 CFinal$Index <- as.character(CFinal$Index)
 
-#Quitar las sanciones preliminares
-
-
 # Seleccionando las variables a usar
 
 RFinal <- RUIAS %>% dplyr::select("ID", "Administrado", "RUC", "Sector económico", "Departamento",
@@ -32,7 +29,9 @@ RFinal <- RUIAS %>% dplyr::select("ID", "Administrado", "RUC", "Sector económic
                                   "Infracción cometida sancionada (Clasificación de 19)", 
                                   "¿Tiene resolución de reconsideración?...81", "¿Tiene resolución de apelación?...88",
                                   "Inicio de supervisión", "Fin de supervisión",
-                                  "¿Tiene resolución de apelación?...88")
+                                  "¿Tiene resolución de apelación?...88", "Documento de inicio", "Fecha de emisión",
+                                  "N° de Resolución de Responsabilidad Administrativa", "Fecha de la Resolución...38", 
+                                  "Fecha de notificación...39")
 
 colnames(RFinal)[colnames(RFinal) == "ID"] <- "Index"
 colnames(RFinal)[colnames(RFinal) == "Sector económico"] <- "SectorEco"
@@ -64,6 +63,22 @@ FINAL$SectorEco <- sapply(FINAL$SectorEco, function(x) {
 })
 
 #write.xlsx(FINAL ,"D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/INFORMES_GRADUACION.xlsx", sheet = "Informes")
+
+###################################
+###### Fechas de informes ########
+###################################
+
+F2022 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Fechas/Fecha_2022.xlsx", sheet = "2022")
+F2023 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Fechas/Fecha_2023.xlsx", sheet = "2023")
+F2024 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Fechas/Fecha_2024.xlsx", sheet = "2024")
+
+Fechas <- rbind(F2022, F2023, F2024)
+
+Fechas <- Fechas %>% dplyr::select(Informes, Fecha_Informe, Obs_Fecha)
+rm(F2022, F2023, F2024)
+
+FINAL <-left_join(x = FINAL, y = Fechas, by="Informes")
+
 
 ###################################
 ##### Factores de graduación ######
