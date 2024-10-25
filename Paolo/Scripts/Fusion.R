@@ -28,7 +28,7 @@ RFinal <- RUIAS %>% dplyr::select("ID", "Administrado", "RUC", "Sector económic
                                   "Provincia", "Distrito", "Infracción cometida sancionada (Clasificación de 11)",
                                   "Infracción cometida sancionada (Clasificación de 19)", 
                                   "¿Tiene resolución de reconsideración?...81", "¿Tiene resolución de apelación?...88",
-                                  "Inicio de supervisión", "Fin de supervisión",
+                                  "Inicio de supervisión", "Fin de supervisión", "Fecha de notificación...23",
                                   "¿Tiene resolución de apelación?...88", "Documento de inicio", "Fecha de emisión",
                                   "N° de Resolución de Responsabilidad Administrativa", "Fecha de la Resolución...38", 
                                   "Fecha de notificación...39")
@@ -37,6 +37,7 @@ colnames(RFinal)[colnames(RFinal) == "ID"] <- "Index"
 colnames(RFinal)[colnames(RFinal) == "Sector económico"] <- "SectorEco"
 colnames(RFinal)[colnames(RFinal) == "Inicio de supervisión"] <- "InicioSup"
 colnames(RFinal)[colnames(RFinal) == "Fin de supervisión"] <- "FinSup"
+colnames(RFinal)[colnames(RFinal) == "Fecha de notificación...23"] <- "InicioPAS"
 colnames(RFinal)[colnames(RFinal) == "Infracción cometida sancionada (Clasificación de 11)"] <- "Incumplimiento1"
 colnames(RFinal)[colnames(RFinal) == "¿Tiene resolución de apelación?...88"] <- "Apelacion"
 
@@ -62,7 +63,6 @@ FINAL$SectorEco <- sapply(FINAL$SectorEco, function(x) {
   paste(toupper(substr(x, 1, 1)), tolower(substr(x, 2, nchar(x))), sep = "")
 })
 
-#write.xlsx(FINAL ,"D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/INFORMES_GRADUACION.xlsx", sheet = "Informes")
 
 ###################################
 ###### Fechas de informes ########
@@ -78,7 +78,7 @@ Fechas <- Fechas %>% dplyr::select(Informes, Fecha_Informe, Obs_Fecha)
 rm(F2022, F2023, F2024)
 
 FINAL <-left_join(x = FINAL, y = Fechas, by="Informes")
-
+rm(Fechas)
 
 ###################################
 ##### Factores de graduación ######
@@ -168,7 +168,292 @@ saveWorkbook(wb, "D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/IN
 #### Estadísticas Descriptivas ####
 ###################################
 
+
+### --- Total de informes de cálculo de multa y hechos imputados --- ###
+### --------- analizados para el período de 2022 a 2024 -----------  ###
+
+# Gráfico de informes y hechos imputados
+rm(Unique, Fechas)
+
+Unique <- FINAL %>%
+  distinct(year, Expediente)
+
+# Conteo de expedientes por año en el objeto FINAL
+cFINAL <- FINAL %>%
+  group_by(year) %>%
+  summarise(Hechos_Imputados = n())
+
+# Conteo de expedientes por año en el objeto Unique
+cUnique <- Unique %>%
+  group_by(year) %>%
+  summarise(Informes = n_distinct(Expediente))
+
+# Fusionamos ambos conteos en un solo data frame por año
+Grafico <- full_join(cFINAL, cUnique, by = "year")
+
+# Reorganizamos los datos en un formato long
+Glong <- Grafico %>%
+  pivot_longer(cols = c(Informes, Hechos_Imputados),
+               names_to = "Origen",
+               values_to = "Conteo")
+
+ggplot(Glong, aes(x = factor(year), y = Conteo, fill = Origen)) +
+  geom_bar(stat = "identity", position = position_dodge2(reverse = TRUE)) +  
+  geom_text(aes(label = Conteo), position = position_dodge2(width = 0.9, reverse = TRUE), vjust = -0.5) +
+  labs(x = "Año", y = "Información analizada", fill = NULL) +
+  scale_fill_manual(values = c("Hechos_Imputados" = "indianred2", "Informes" = "#7AC5CD"),
+                    labels = c("Hechos Imputados", "Informes")) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
 #INFORMES <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/Consolidado_Informes.xlsx", sheet = "CONSOLIDADO")
+
+
+### --- Infracciones analizadas por sectores para el período de 2022 a 2024 --- ###
+
+FINAL$SectorEco <- ifelse(FINAL$SectorEco == "NANA", "No aplica", FINAL$SectorEco)
+table(FINAL$SectorEco, useNA = "ifany")
+
+# Calcular las frecuencias y los porcentajes
+data_pie <- FINAL %>%
+  filter(SectorEco != "No aplica") %>%  
+  group_by(SectorEco) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = count / sum(count) * 100)
+
+# Gráficos de pie
+ggplot(data_pie, aes(x = "", y = count, fill = SectorEco)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  theme_void() +  
+  geom_text(aes(label = sprintf("%.1f%%", percentage)),  
+            position = position_stack(vjust = 0.5), 
+            size = 4) +  
+  scale_fill_brewer(palette = "Dark2") + 
+  labs(fill = "Sector económico") 
+
+ggplot(data_pie, aes(x = "", y = count, fill = SectorEco)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  theme_void() + 
+  geom_text(aes(label = sprintf("%.1f%%", percentage)), 
+            position = position_stack(vjust = 0.5), 
+            size = 4,  
+            fontface = "bold") +  
+  scale_fill_brewer(palette = "Dark2") + 
+  labs(fill = NULL) +  
+  theme(legend.position = "bottom")
+
+ggplot(data_pie, aes(x = "", y = count, fill = SectorEco)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  theme_void() +  
+  geom_text(aes(label = sprintf("%.1f%%", percentage)),  
+            position = position_stack(vjust = 0.5), 
+            size = 4,  
+            color = "white", 
+            fontface = "bold") +  
+  scale_fill_viridis_d(option = "D") +  
+  labs(fill = "Sector económico") 
+
+ggplot(data_pie, aes(x = "", y = count, fill = SectorEco)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  theme_void() +  
+  geom_text(aes(label = sprintf("%.1f%%", percentage)),  
+            position = position_stack(vjust = 0.5), 
+            size = 4,  
+            color = "white",  
+            fontface = "bold") +  
+  scale_fill_viridis_d() +  
+  labs(fill = NULL) +  
+  theme(legend.position = "bottom")
+
+rm(data_pie)
+
+### --- Gráfico de cajas de la sanciones impuestas por imputación (con y sin valores atípicos) --- ###
+
+Multa_Unica <- FINAL %>%
+  distinct(year, Sancion_total)
+
+Est1 <- Multa_Unica %>%
+  group_by(year) %>%
+  summarise(
+    mediana = median(Sancion_total, na.rm = TRUE),
+    Q1 = quantile(Sancion_total, 0.25, na.rm = TRUE),
+    Q3 = quantile(Sancion_total, 0.75, na.rm = TRUE),
+    promedio = mean(Sancion_total, na.rm = TRUE),  
+    .groups = 'drop')
+
+# Gráfico de cajas conjunto
+
+Multa1 <-ggplot(Multa_Unica, aes(x = factor(year), y = Sancion_total)) +
+         geom_boxplot(fill = "darkolivegreen4", color = "black", outlier.colour = "black") +
+         labs(x = "Año", y = "Sanción Total (en UIT)") +
+         theme_minimal()
+
+# Ahora sin considerar outliers
+Filtro <- FINAL %>%
+  group_by(year) %>%
+  filter(Sancion_total <= quantile(Sancion_total, 0.70, na.rm = TRUE)) %>%
+  ungroup()  
+
+Est2 <- Filtro %>%
+  group_by(year) %>%
+  summarise(
+    mediana = median(Sancion_total, na.rm = TRUE),
+    Q1 = quantile(Sancion_total, 0.25, na.rm = TRUE),
+    Q3 = quantile(Sancion_total, 0.75, na.rm = TRUE),
+    promedio = mean(Sancion_total, na.rm = TRUE),
+    .groups = 'drop')
+
+Multa2 <- ggplot(Filtro, aes(x = factor(year), y = Sancion_total)) +
+          geom_boxplot(fill = "darkgoldenrod2", color = "black", outlier.colour = "black") +  
+          labs(x = "Año", y = "Sanción Total (en UIT)") +
+          theme_minimal()
+
+library(patchwork)
+MultaF <- Multa1 / Multa2 
+MultaF
+
+rm(Est1, Est2, Filtro, Multa_Unica, Multa1, Multa2, MultaF)
+
+
+### --- Gráfico de Tiempo Promedio --- ###
+
+# Convertir las variables de fechas al formato Date (si no lo están ya)
+
+Fechas <- FINAL %>% dplyr::select("SectorEco", "FinSup", "InicioPAS", "Fecha_Informe", "year")
+Fechas <- Fechas %>% filter(SectorEco != "NANA")
+
+Fechas$FinSup <- as.numeric(Fechas$FinSup)
+Fechas$FinSup <- as.Date(Fechas$FinSup, origin = "1899-12-30")
+FINAL$InicioPAS <- as.Date(FINAL$InicioPAS, format="%Y-%m-%d")
+FINAL$Fecha_Informe <- as.Date(FINAL$Fecha_Informe, format="%Y-%m-%d")
+
+# Calcular las diferencias en meses entre las fechas
+
+# De FinSup a InicioPAS
+Fechas$Meses_FinSup_InicioPAS <- as.numeric(difftime(Fechas$InicioPAS, Fechas$FinSup, units = "days")) / 30.44
+
+# De InicioPAS a Fecha_Informe
+Fechas$Meses_InicioPAS_FechaInforme <- as.numeric(difftime(Fechas$Fecha_Informe, Fechas$InicioPAS, units = "days")) / 30.44
+
+# Calcular los promedios de cada transición
+promedio_FinSup_InicioPAS <- mean(Fechas$Meses_FinSup_InicioPAS, na.rm = TRUE)
+promedio_InicioPAS_FechaInforme <- mean(Fechas$Meses_InicioPAS_FechaInforme, na.rm = TRUE)
+
+# Crear un data frame con los resultados
+promedios <- data.frame(
+  Transicion = c("Periodo de incumplimiento", "Determinación de multa"),
+  Meses_Promedio = c(promedio_FinSup_InicioPAS, promedio_InicioPAS_FechaInforme))
+
+promedios$ID <- seq(1, nrow(promedios))
+
+# Tiempo promedio entre fechas en meses
+promedios$Transicion <- factor(promedios$Transicion, levels = promedios$Transicion[order(promedios$ID)])
+
+# Gráfico con el nuevo orden
+ggplot(promedios, aes(x = Transicion, y = Meses_Promedio, fill = Transicion)) +
+  geom_bar(stat = "identity", width = 0.6, color = "black") +
+  labs(x = "Transición", y = "Meses promedio") +
+  theme_minimal() +
+  scale_fill_manual(
+    values = c("lightcoral", "skyblue")) +
+  geom_text(aes(label = round(Meses_Promedio, 0)), vjust = -0.5) +
+  theme(
+    legend.position = "bottom",           
+    legend.title = element_blank()) +
+  guides(fill = guide_legend(title = NULL))
+
+# Calcular los máximo de cada transición
+max_FinSup_InicioPAS <- max(Fechas$Meses_FinSup_InicioPAS, na.rm = TRUE)
+max_InicioPAS_FechaInforme <- max(Fechas$Meses_InicioPAS_FechaInforme, na.rm = TRUE)
+
+# Crear un data frame con los resultados
+maximos <- data.frame(
+  Transicion = c("Periodo de incumplimiento", "Determinación de multa"),
+  Meses_max = c(max_FinSup_InicioPAS, max_InicioPAS_FechaInforme))
+
+maximos$ID <- seq(1, nrow(maximos))
+
+# Tiempo promedio entre fechas en meses
+maximos$Transicion <- factor(maximos$Transicion, levels = maximos$Transicion[order(maximos$ID)])
+
+# Gráfico con el nuevo orden
+ggplot(maximos, aes(x = Transicion, y = Meses_max, fill = Transicion)) +
+  geom_bar(stat = "identity", width = 0.6, color = "black") +
+  labs(x = "Transición", y = "Meses máximos") +
+  theme_minimal() +
+  scale_fill_manual(
+    values = c("lightcoral", "skyblue")) +
+  geom_text(aes(label = round(Meses_max, 0)), vjust = -0.5) +
+  theme(
+    legend.position = "bottom",           
+    legend.title = element_blank()) +
+  guides(fill = guide_legend(title = NULL))
+
+# A nivel de sector económico
+
+
+# Calcular los promedios de cada transición por sector económico
+promedios_sector <- Fechas %>%
+  group_by(SectorEco) %>%
+  summarise(
+    Promedio_Sup_PAS = mean(Meses_FinSup_InicioPAS, na.rm = TRUE),
+    Promedio_PAS_Inf = mean(Meses_InicioPAS_FechaInforme, na.rm = TRUE)
+  ) %>%
+  pivot_longer(
+    cols = starts_with("Promedio"),
+    names_to = "Transicion",
+    values_to = "Meses_Promedio"
+  )
+
+ggplot(promedios_sector, aes(x = SectorEco, y = Meses_Promedio, fill = Transicion)) +
+  geom_bar(stat = "identity", position = position_dodge(), width = 0.6, color = "black") +
+  labs(x = "Sector Económico", y = "Meses promedio") +
+  theme_minimal() +
+  scale_fill_manual(
+    values = c("skyblue", "lightcoral"),
+    labels = c("Determinación de multa", "Periodo de incumplimiento")) +  
+  geom_text(aes(label = round(Meses_Promedio, 0)), vjust = -0.5, position = position_dodge(0.6)) +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_blank()) +
+  guides(fill = guide_legend(title = NULL))
+
+
+# Calcular los máximos de cada transición por sector económico
+Max_sector <- Fechas %>%
+  group_by(SectorEco) %>%
+  summarise(
+    Max_Sup_PAS = max(Meses_FinSup_InicioPAS, na.rm = TRUE),
+    Max_PAS_Inf = max(Meses_InicioPAS_FechaInforme, na.rm = TRUE)
+  ) %>%
+  pivot_longer(
+    cols = starts_with("Max"),
+    names_to = "Transicion",
+    values_to = "Meses_max"
+  )
+
+ggplot(Max_sector, aes(x = SectorEco, y = Meses_max, fill = Transicion)) +
+  geom_bar(stat = "identity", position = position_dodge(), width = 0.6, color = "black") +
+  labs(x = "Sector Económico", y = "Meses máximos") +
+  theme_minimal() +
+  scale_fill_manual(values = c("skyblue", "lightcoral"),
+  labels = c("Determinación de multa", "Periodo de incumplimiento")) +  
+  geom_text(aes(label = round(Meses_max, 0)), vjust = -0.5, position = position_dodge(0.6)) +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_blank()
+  ) +
+  guides(fill = guide_legend(title = NULL))
+
+# Periodo de incumplimiento: Del fin de la supervisión al Inicio de PAS
+# Determinación de la multa: De Inicio de PAS a Informe de Sanción
+
+
+### --- Otros estadísticos --- ###
 
 ## Creando la variable de ocurrencia
 Unique <- FINAL %>%
@@ -193,8 +478,6 @@ Colapsado$Index <- paste(Colapsado$year, Colapsado$Expediente, sep = "_")
 Filtro <- Colapsado[, c("Index", "Recurrencia")]
 FINAL <- merge(FINAL, Filtro, by = "Index", all.x = TRUE)
 rm(Colapsado, Filtro, Recurrencia, Unique)
-
-### ------- Estadísticas descriptivas ------- ###
 
 # Administrados únicos por año
 
