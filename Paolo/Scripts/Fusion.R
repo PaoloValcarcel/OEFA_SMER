@@ -1,9 +1,10 @@
-rm(list = ls())
 
 require(pacman)
 p_load(foreign, tidyverse, rio, here, dplyr, viridis, readxl, stringr, RColorBrewer, ggcorrplot,  
         flextable, officer, classInt, foreign, stargazer, sf, mapview, leaflet, writexl, lmtest,
        tseries, car, haven, officer, xlsx, openxlsx)
+
+rm(list = ls())
 
 ###################################
 ###### Informes de sanción ########
@@ -45,6 +46,8 @@ RFinal$Index <- as.character(RFinal$Index)
 
 # Fusionando ambas bases
 FINAL <-left_join(x = CFinal, y = RFinal, by="Index")
+FINAL <- FINAL %>%
+  mutate(Merge = if_else(!is.na(Departamento), 1, 0)) 
 
 # Eliminando los objetos que no necesitamos
 rm(CFinal, RFinal, Consolidado, RUIAS)
@@ -63,6 +66,44 @@ FINAL$SectorEco <- sapply(FINAL$SectorEco, function(x) {
   paste(toupper(substr(x, 1, 1)), tolower(substr(x, 2, nchar(x))), sep = "")
 })
 
+FINAL <- FINAL %>% filter(Multa_Final != 0)
+
+# Quedándome solo con los que fusionaron perfecto con el RUIAS
+
+table(FINAL$Merge)
+FINAL <- FINAL %>%
+  filter(Merge == 1)
+
+# Otros ajustes
+
+FINAL <- FINAL %>%
+  select(-Administrado.x) %>%  
+  rename(Administrado = Administrado.y)  
+
+### Obteniendo el total de hechos imputados, extremos y sub extremos ###
+
+FINAL$Colapsar <- ifelse(FINAL$Colapsar == "Máximo", "Maximo", FINAL$Colapsar)
+table(FINAL$Colapsar)
+
+# Seleccionando variables a emplear
+Extremos <- FINAL %>% dplyr::select(Informes, Num_Imputacion, Colapsar)
+
+#  245 registros con extremos y sub extremos
+Revision <- Extremos %>% 
+            filter(Colapsar!="NA")
+
+#  64 hechos imputados con extremos y sub extremos
+Revision2 <- Revision %>%
+  distinct(Informes, Num_Imputacion)
+
+#  37 informes con hechos imputados con extremos y sub extremos
+Revision3 <- Revision2 %>%
+  distinct(Informes)
+
+rm(Extremos, Revision, Revision2, Revision3)
+
+# 798 - 245 = 553 Hechos imputados
+# 553 + 64 = 617 Hechos imputados
 
 ###################################
 ###### Fechas de informes ########
@@ -113,9 +154,9 @@ G2024F <- G2024F %>%
 # "Se debe eliminar por criterio del informe"
 
 # Selecionando las variables a emplear
-G2022F <- G2022F %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agravantes", "Categoria_FA", "% FA")
-G2023F <- G2023F %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agravantes", "Categoria_FA", "% FA")
-G2024F <- G2024F %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agravantes", "Categoria_FA", "% FA")
+G2022F <- G2022F %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agravantes", "Categoria_FA", "% FA", "Imputacion")
+G2023F <- G2023F %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agravantes", "Categoria_FA", "% FA", "Imputacion")
+G2024F <- G2024F %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agravantes", "Categoria_FA", "% FA", "Imputacion")
 
 # Haciendo un append
 Aglomerado <- rbind(G2022F, G2023F, G2024F)
@@ -142,8 +183,12 @@ rm(Consolidado, Aglomerado, Unicos)
 Fusion <- Fusion %>%
   filter(is.na(Propuesta_Multa))
 
-Fusion <- Fusion %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agravantes", "Categoria_FA", "% FA")
+FACTORES <- Fusion %>%
+  filter(!(Informes == "00575-2023-OEFA/DFAI-SSAG" & Imputacion == 1))
 
+FACTORES <- FACTORES %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agravantes", "Categoria_FA", "% FA")
+
+rm(Fusion)
 #write.xlsx(Fusion,"D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/INFORMES_GRADUACION.xlsx", sheet = "Factores")
 
 ###################################
@@ -172,21 +217,21 @@ saveWorkbook(wb, "D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/IN
 ### --- Total de informes de cálculo de multa y hechos imputados --- ###
 ### --------- analizados para el período de 2022 a 2024 -----------  ###
 
-# Gráfico de informes y hechos imputados
-rm(Unique, Fechas)
+
+### ------- Para el total fusionando con RUIIAS ------- ###
 
 Unique <- FINAL %>%
-  distinct(year, Expediente)
+  distinct(year, Informes)
 
-# Conteo de expedientes por año en el objeto FINAL
+# Conteo de observaciones por año en el objeto FINAL
 cFINAL <- FINAL %>%
   group_by(year) %>%
   summarise(Hechos_Imputados = n())
 
-# Conteo de expedientes por año en el objeto Unique
+# Conteo de informes por año en el objeto Unique
 cUnique <- Unique %>%
   group_by(year) %>%
-  summarise(Informes = n_distinct(Expediente))
+  summarise(Informes = n_distinct(Informes))
 
 # Fusionamos ambos conteos en un solo data frame por año
 Grafico <- full_join(cFINAL, cUnique, by = "year")
@@ -200,62 +245,92 @@ Glong <- Grafico %>%
 ggplot(Glong, aes(x = factor(year), y = Conteo, fill = Origen)) +
   geom_bar(stat = "identity", position = position_dodge2(reverse = TRUE)) +  
   geom_text(aes(label = Conteo), position = position_dodge2(width = 0.9, reverse = TRUE), vjust = -0.5) +
-  labs(x = "Año", y = "Información analizada", fill = NULL) +
+  labs(x = "Año", y = "Información cruzada con el RUIIAS", fill = NULL) +
   scale_fill_manual(values = c("Hechos_Imputados" = "indianred2", "Informes" = "#7AC5CD"),
                     labels = c("Hechos Imputados", "Informes")) +
   theme_minimal() +
   theme(legend.position = "bottom")
 
-#INFORMES <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/Consolidado_Informes.xlsx", sheet = "CONSOLIDADO")
+rm(cFINAL, Grafico, Glong, Unique)
+
+### ------- Solo hechos imputados fusionado con RUIIAS ------- ###
+
+Extremos <- FINAL %>% dplyr::select(Informes, Num_Imputacion, Colapsar, year)
+
+Revision1 <- Extremos %>% 
+  filter(Colapsar!="NA")
+
+Rev1 <- Revision1 %>%
+  distinct(Informes, Num_Imputacion)
+
+Revision2 <- Extremos %>% 
+  filter(is.na(Colapsar))
+
+Rev2 <- Revision2 %>%
+  distinct(Informes, Num_Imputacion)
+
+# Ahora ya cuadra Revision2 con Rev2 al tener los mismos datos únicos
+
+Revs <- rbind(Rev1, Rev2)
+Revs <- Revs %>% dplyr::select(Informes)
+Revs$year <- sub(".*-(\\d{4}).*", "\\1", Revs$Informes)
+
+cRevs <- Revs %>%
+  group_by(year) %>%
+  summarise(Hechos_Imputados = n())
+
+# Fusionamos ambos conteos en un solo data frame por año
+cUnique$year <- as.character(cUnique$year)
+Grafico <- full_join(cRevs, cUnique, by = "year")
+
+# Reorganizamos los datos en un formato long
+Glong <- Grafico %>%
+  pivot_longer(cols = c(Informes, Hechos_Imputados),
+               names_to = "Origen",
+               values_to = "Conteo")
+
+ggplot(Glong, aes(x = factor(year), y = Conteo, fill = Origen)) +
+  geom_bar(stat = "identity", position = position_dodge2(reverse = TRUE)) +  
+  geom_text(aes(label = Conteo), position = position_dodge2(width = 0.9, reverse = TRUE), vjust = -0.5) +
+  labs(x = "Año", y = "Información cruzada con el RUIIAS", fill = NULL) +
+  scale_fill_manual(values = c("Hechos_Imputados" = "indianred2", "Informes" = "#7AC5CD"),
+                    labels = c("Hechos Imputados", "Informes")) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+rm(Grafico, Glong, Rev1, Rev2, Revision1, Revision2, Revs, Extremos, cRevs, cUnique)
+
 
 
 ### --- Infracciones analizadas por sectores para el período de 2022 a 2024 --- ###
 
-FINAL$SectorEco <- ifelse(FINAL$SectorEco == "NANA", "No aplica", FINAL$SectorEco)
-table(FINAL$SectorEco, useNA = "ifany")
+
+Extremos <- FINAL %>% dplyr::select(Informes, Num_Imputacion, Colapsar, SectorEco)
+
+Hechos <- Extremos %>% 
+  filter(is.na(Colapsar))
+Hechos <- Hechos %>% dplyr::select(Informes, Num_Imputacion, SectorEco)
+
+Revision <- Extremos %>% 
+  filter(Colapsar!="NA")
+
+Revision2 <- Revision %>%
+  distinct(Informes, Num_Imputacion, SectorEco)
+
+Imputaciones <- rbind(Hechos, Revision2)
+Imputaciones$year <- sub(".*-(\\d{4})-.*", "\\1", Imputaciones$Informes)
+
+rm(Extremos, Hechos, Revision, Revision2)
+Imputaciones <- Imputaciones %>% dplyr::select(SectorEco, year)
 
 # Calcular las frecuencias y los porcentajes
-data_pie <- FINAL %>%
+data_pie <- Imputaciones %>%
   filter(SectorEco != "No aplica") %>%  
   group_by(SectorEco) %>%
   summarise(count = n()) %>%
   mutate(percentage = count / sum(count) * 100)
 
 # Gráficos de pie
-ggplot(data_pie, aes(x = "", y = count, fill = SectorEco)) +
-  geom_bar(stat = "identity", width = 1) +
-  coord_polar(theta = "y") +
-  theme_void() +  
-  geom_text(aes(label = sprintf("%.1f%%", percentage)),  
-            position = position_stack(vjust = 0.5), 
-            size = 4) +  
-  scale_fill_brewer(palette = "Dark2") + 
-  labs(fill = "Sector económico") 
-
-ggplot(data_pie, aes(x = "", y = count, fill = SectorEco)) +
-  geom_bar(stat = "identity", width = 1) +
-  coord_polar(theta = "y") +
-  theme_void() + 
-  geom_text(aes(label = sprintf("%.1f%%", percentage)), 
-            position = position_stack(vjust = 0.5), 
-            size = 4,  
-            fontface = "bold") +  
-  scale_fill_brewer(palette = "Dark2") + 
-  labs(fill = NULL) +  
-  theme(legend.position = "bottom")
-
-ggplot(data_pie, aes(x = "", y = count, fill = SectorEco)) +
-  geom_bar(stat = "identity", width = 1) +
-  coord_polar(theta = "y") +
-  theme_void() +  
-  geom_text(aes(label = sprintf("%.1f%%", percentage)),  
-            position = position_stack(vjust = 0.5), 
-            size = 4,  
-            color = "white", 
-            fontface = "bold") +  
-  scale_fill_viridis_d(option = "D") +  
-  labs(fill = "Sector económico") 
-
 ggplot(data_pie, aes(x = "", y = count, fill = SectorEco)) +
   geom_bar(stat = "identity", width = 1) +
   coord_polar(theta = "y") +
@@ -269,83 +344,269 @@ ggplot(data_pie, aes(x = "", y = count, fill = SectorEco)) +
   labs(fill = NULL) +  
   theme(legend.position = "bottom")
 
-rm(data_pie)
+rm(data_pie, Imputaciones)
 
 ### --- Gráfico de cajas de la sanciones impuestas por imputación (con y sin valores atípicos) --- ###
 
-Multa_Unica <- FINAL %>%
-  distinct(year, Sancion_total)
+General <- FINAL %>% dplyr::select(Informes, Num_Imputacion, Colapsar, year, Multa_Final)
+Hechos <- General %>% filter(is.na(Colapsar))
+Hechos <- Hechos %>% dplyr::select(Informes, Num_Imputacion, year, Multa_Final)
+Extremos <- General %>%  filter(Colapsar!="NA")
 
-Est1 <- Multa_Unica %>%
+Ext_colaps <- Extremos %>%
+  group_by(Informes, Num_Imputacion, year) %>%
+  summarize(
+    Multa_Final = ifelse(first(Colapsar) == "Suma",
+                         sum(Multa_Final, na.rm = TRUE),
+                         max(Multa_Final, na.rm = TRUE)), .groups = 'drop')
+
+Hechos_Multas <- rbind(Hechos, Ext_colaps)
+
+rm(Ext_colaps, Hechos, General, Extremos)
+
+Est1 <- Hechos_Multas %>%
   group_by(year) %>%
   summarise(
-    mediana = median(Sancion_total, na.rm = TRUE),
-    Q1 = quantile(Sancion_total, 0.25, na.rm = TRUE),
-    Q3 = quantile(Sancion_total, 0.75, na.rm = TRUE),
-    promedio = mean(Sancion_total, na.rm = TRUE),  
+    minimo = round(min(Multa_Final, na.rm = TRUE), 3),
+    Q1 = round(quantile(Multa_Final, 0.25, na.rm = TRUE), 2),
+    mediana = round(median(Multa_Final, na.rm = TRUE), 2),
+    promedio = round(mean(Multa_Final, na.rm = TRUE), 2),
+    Q3 = round(quantile(Multa_Final, 0.75, na.rm = TRUE), 2),
+    maximo = round(max(Multa_Final, na.rm = TRUE), 0),
     .groups = 'drop')
 
-# Gráfico de cajas conjunto
+#write_xlsx(Est1, "D:/NUEVO D/LOCACION OEFA/Informes/Tercera OS/Informe 5/Graficos/Tabla_Año.xlsx")
 
-Multa1 <-ggplot(Multa_Unica, aes(x = factor(year), y = Sancion_total)) +
+# Gráfico de cajas con outliers
+
+Multa1 <-  ggplot(Hechos_Multas, aes(x = factor(year), y = Multa_Final)) +
          geom_boxplot(fill = "darkolivegreen4", color = "black", outlier.colour = "black") +
-         labs(x = "Año", y = "Sanción Total (en UIT)") +
+         labs(x = "Año", y = "Multa final (en UIT)") +
          theme_minimal()
 
 # Ahora sin considerar outliers
-Filtro <- FINAL %>%
+Filtro <- Hechos_Multas %>%
   group_by(year) %>%
-  filter(Sancion_total <= quantile(Sancion_total, 0.70, na.rm = TRUE)) %>%
+  filter(Multa_Final <= quantile(Multa_Final, 0.70, na.rm = TRUE)) %>%
   ungroup()  
 
 Est2 <- Filtro %>%
   group_by(year) %>%
   summarise(
-    mediana = median(Sancion_total, na.rm = TRUE),
-    Q1 = quantile(Sancion_total, 0.25, na.rm = TRUE),
-    Q3 = quantile(Sancion_total, 0.75, na.rm = TRUE),
-    promedio = mean(Sancion_total, na.rm = TRUE),
+    mediana = median(Multa_Final, na.rm = TRUE),
+    Q1 = quantile(Multa_Final, 0.25, na.rm = TRUE),
+    Q3 = quantile(Multa_Final, 0.75, na.rm = TRUE),
+    promedio = mean(Multa_Final, na.rm = TRUE),
     .groups = 'drop')
 
-Multa2 <- ggplot(Filtro, aes(x = factor(year), y = Sancion_total)) +
+Est3 <- Filtro %>%
+  summarise(
+    mediana = median(Multa_Final, na.rm = TRUE),
+    Q1 = quantile(Multa_Final, 0.25, na.rm = TRUE),
+    Q3 = quantile(Multa_Final, 0.75, na.rm = TRUE),
+    promedio = mean(Multa_Final, na.rm = TRUE),  
+    .groups = 'drop')
+
+# Gráfico de cajas sin outliers
+Multa2 <- ggplot(Filtro, aes(x = factor(year), y = Multa_Final)) +
           geom_boxplot(fill = "darkgoldenrod2", color = "black", outlier.colour = "black") +  
-          labs(x = "Año", y = "Sanción Total (en UIT)") +
+          labs(x = "Año", y = "Multa final (en UIT)") +
           theme_minimal()
 
 library(patchwork)
 MultaF <- Multa1 / Multa2 
 MultaF
 
-rm(Est1, Est2, Filtro, Multa_Unica, Multa1, Multa2, MultaF)
+rm(Est1, Est2, Est3, Filtro, Multa1, Multa2, MultaF, Hechos_Multas)
+
+### ---- Por sectores ---- ###
+General <- FINAL %>% dplyr::select(Informes, Num_Imputacion, Colapsar, year, Multa_Final, SectorEco)
+Hechos <- General %>% filter(is.na(Colapsar))
+Hechos <- Hechos %>% dplyr::select(Informes, Num_Imputacion, year, Multa_Final,  SectorEco)
+Extremos <- General %>% filter(Colapsar!="NA")
+
+Ext_colaps <- Extremos %>%
+  group_by(Informes, Num_Imputacion, year, SectorEco) %>%
+  summarize(Multa_Final = ifelse(first(Colapsar) == "Suma",
+                         sum(Multa_Final, na.rm = TRUE),
+                         max(Multa_Final, na.rm = TRUE)), .groups = 'drop')
+
+Hechos_Multas <- rbind(Hechos, Ext_colaps)
+
+rm(Hechos, General, Extremos, Ext_colaps)
+Hechos_Multas <- Hechos_Multas %>% dplyr::select(year, Multa_Final, SectorEco)
+
+Est4 <- Hechos_Multas %>%
+  group_by(SectorEco) %>%
+  summarise(
+    minimo = round(min(Multa_Final, na.rm = TRUE), 3),
+    Q1 = round(quantile(Multa_Final, 0.25, na.rm = TRUE), 2),
+    mediana = round(median(Multa_Final, na.rm = TRUE), 2),
+    promedio = round(mean(Multa_Final, na.rm = TRUE), 2),
+    Q3 = round(quantile(Multa_Final, 0.75, na.rm = TRUE), 2),
+    maximo = round(max(Multa_Final, na.rm = TRUE), 0),
+    .groups = 'drop')
+
+write_xlsx(Est4, "D:/NUEVO D/LOCACION OEFA/Informes/Tercera OS/Informe 5/Graficos/Tabla_Sectores.xlsx")
+
+# Gráfico de cajas con outliers por sectores
+Multa3 <- ggplot(Hechos_Multas, aes(x = factor(SectorEco), y = Multa_Final)) +
+          geom_boxplot(fill = "darkolivegreen4", color = "black", outlier.colour = "black") +
+          labs(x = "Sector Económico", y = "Multa final (en UIT)") +
+          theme_minimal()
+
+# Ahora sin considerar outliers
+Filtro2 <- Hechos_Multas %>%
+           group_by(SectorEco) %>%
+           filter(Multa_Final <= quantile(Multa_Final, 0.70, na.rm = TRUE)) %>%
+           ungroup() 
+
+Multa4 <-   ggplot(Filtro2, aes(x = factor(SectorEco), y = Multa_Final)) +
+            geom_boxplot(fill = "darkgoldenrod2", color = "black", outlier.colour = "black") +  
+            labs(x = "Año", y = "Multa final (en UIT)") +
+            theme_minimal()
+
+
+MultaF2 <- Multa3 / Multa4 
+MultaF2
+
+rm(Est4, Multa3, Multa4, Hechos_Multas, Filtro2, MultaF2)
+
+### --- Tabla estadística del Beneficio Ilícito por sector --- ###
+
+General <- FINAL %>% dplyr::select(Informes, Num_Imputacion, Colapsar, year, 
+                                   Beneficio_ilícito, Multa_Final, SectorEco)
+Hechos <- General %>% filter(is.na(Colapsar))
+Hechos <- Hechos %>% dplyr::select(Informes, Num_Imputacion, year, Beneficio_ilícito,  SectorEco)
+Extremos <- General %>% filter(Colapsar!="NA")
+
+Ext_colaps <- Extremos %>%
+  group_by(Informes, Num_Imputacion, year, SectorEco) %>%
+  summarize(Beneficio_ilícito = ifelse(first(Colapsar) == "Suma",
+                                 sum(Beneficio_ilícito, na.rm = TRUE),
+                                 max(Beneficio_ilícito, na.rm = TRUE)), .groups = 'drop')
+
+Hechos_Ilicitos <- rbind(Hechos, Ext_colaps)
+
+Est5 <- Hechos_Ilicitos %>%
+  group_by(SectorEco) %>%
+  summarise(Min = min(Beneficio_ilícito, na.rm = TRUE),
+    Q1 = quantile(Beneficio_ilícito, 0.25, na.rm = TRUE),
+    Mediana = median(Beneficio_ilícito, na.rm = TRUE),
+    Media = mean(Beneficio_ilícito, na.rm = TRUE),
+    Q3 = quantile(Beneficio_ilícito, 0.75, na.rm = TRUE),
+    Max = max(Beneficio_ilícito, na.rm = TRUE))
+
+# Ver la tabla generada
+write_xlsx(Est5, "D:/NUEVO D/LOCACION OEFA/Informes/Tercera OS/Informe 5/Graficos/Tabla_beneficio.xlsx")
+
+# Grafico de cajas del beneficio ilicito por sector
+
+BI_Sectores <- Hechos_Ilicitos %>%
+  distinct(SectorEco, Beneficio_ilícito)
+
+Filtro3 <- BI_Sectores %>%
+  group_by(SectorEco) %>%
+  filter(Beneficio_ilícito <= quantile(Beneficio_ilícito, 0.70, na.rm = TRUE)) %>%
+  ungroup() 
+
+# Ajusta los márgenes (c(bottom, left, top, right))
+par(mfrow = c(2, 1), mar = c(3, 4, 2, 1)) 
+
+# Gráfico de cajas con outliers por sectores
+boxplot(Beneficio_ilícito ~ SectorEco, data = BI_Sectores,
+        xlab = "Sector Económico", ylab = "Beneficio ilícito (en UIT)",
+        col = "lightblue", border = "black", outlier.colour = "black",
+        cex.axis = 0.55)  
+
+# Gráfico de cajas sin outliers por sectores
+boxplot(Beneficio_ilícito ~ SectorEco, data = Filtro3,
+        xlab = "Sector Económico", ylab = "Beneficio ilícito (en UIT)",
+        col = "lightblue", border = "black", outlier.colour = "black",
+        cex.axis = 0.55)  
+
+# Restablece la configuración de gráficos
+par(mfrow = c(1, 1))
 
 
 ### --- Gráfico de Tiempo Promedio --- ###
 
 # Convertir las variables de fechas al formato Date (si no lo están ya)
 
-Fechas <- FINAL %>% dplyr::select("SectorEco", "FinSup", "InicioPAS", "Fecha_Informe", "year")
-Fechas <- Fechas %>% filter(SectorEco != "NANA")
+Fechas <- FINAL %>% dplyr::select("SectorEco", "FinSup", "InicioPAS", "Fecha_Informe", "year",
+                                  "Informes", "Num_Imputacion", "Colapsar")
 
 Fechas$FinSup <- as.numeric(Fechas$FinSup)
 Fechas$FinSup <- as.Date(Fechas$FinSup, origin = "1899-12-30")
 FINAL$InicioPAS <- as.Date(FINAL$InicioPAS, format="%Y-%m-%d")
 FINAL$Fecha_Informe <- as.Date(FINAL$Fecha_Informe, format="%Y-%m-%d")
 
+
+Hechos <- Fechas %>% filter(is.na(Colapsar))
+Extremos <- Fechas %>% filter(Colapsar!="NA")
+
+Colaps <- Extremos %>%
+  group_by(Num_Imputacion, Informes) %>%
+  slice(1) %>%  
+  ungroup()
+
+Fechas_Hechos <- rbind(Hechos, Colaps)
+rm(Colaps, Hechos, Extremos, Fechas)
+
+
 # Calcular las diferencias en meses entre las fechas
 
+# Periodo de incumplimiento: Del fin de la supervisión (FinSup) al Inicio de PAS (InicioPAS)
+# Determinación de la multa: De Inicio de PAS (InicioPAS) a Informe de Sanción (Fecha_Informe)
+
 # De FinSup a InicioPAS
-Fechas$Meses_FinSup_InicioPAS <- as.numeric(difftime(Fechas$InicioPAS, Fechas$FinSup, units = "days")) / 30.44
+Fechas_Hechos$Meses_FinSup_InicioPAS <- as.numeric(difftime(Fechas_Hechos$InicioPAS, 
+                                                            Fechas_Hechos$FinSup, units = "days")) / 30.44
 
 # De InicioPAS a Fecha_Informe
-Fechas$Meses_InicioPAS_FechaInforme <- as.numeric(difftime(Fechas$Fecha_Informe, Fechas$InicioPAS, units = "days")) / 30.44
+Fechas_Hechos$Meses_InicioPAS_FechaInforme <- as.numeric(difftime(Fechas_Hechos$Fecha_Informe, 
+                                                           Fechas_Hechos$InicioPAS, units = "days")) / 30.44
 
 # Calcular los promedios de cada transición
-promedio_FinSup_InicioPAS <- mean(Fechas$Meses_FinSup_InicioPAS, na.rm = TRUE)
-promedio_InicioPAS_FechaInforme <- mean(Fechas$Meses_InicioPAS_FechaInforme, na.rm = TRUE)
+mediana_FinSup_InicioPAS <- median(Fechas_Hechos$Meses_FinSup_InicioPAS, na.rm = TRUE)
+promedio_FinSup_InicioPAS <- mean(Fechas_Hechos$Meses_FinSup_InicioPAS, na.rm = TRUE)
+mediana_InicioPAS_FechaInforme <- median(Fechas_Hechos$Meses_InicioPAS_FechaInforme, na.rm = TRUE)
+promedio_InicioPAS_FechaInforme <- mean(Fechas_Hechos$Meses_InicioPAS_FechaInforme, na.rm = TRUE)
+
+
+# percentil 90
+
+# Calcular el percentil 90 para ambos periodos
+percentil_90_FinSup_InicioPAS <- quantile(Fechas_Hechos$Meses_FinSup_InicioPAS, 0.90, na.rm = TRUE)
+percentil_90_InicioPAS_FechaInforme <- quantile(Fechas_Hechos$Meses_InicioPAS_FechaInforme, 0.90, na.rm = TRUE)
+
+# Filtrar los datos excluyendo los outliers por encima del percentil 90
+Fechas_Filtrado <- Fechas_Hechos %>%
+  filter(Meses_FinSup_InicioPAS <= percentil_90_FinSup_InicioPAS,
+         Meses_InicioPAS_FechaInforme <= percentil_90_InicioPAS_FechaInforme)
+
+
+# Configurar la ventana gráfica para mostrar 2 gráficos en 1 fila
+par(mfrow = c(1, 2))
+
+# Gráfico 1: Periodo de Incumplimiento (FinSup a InicioPAS)
+boxplot(Fechas_Filtrado$Meses_FinSup_InicioPAS,
+        main = "Periodo 1",
+        ylab = "Meses",
+        col = "lightblue")
+
+# Gráfico 2: Determinación de la multa (InicioPAS a Informe de Sanción)
+boxplot(Fechas_Filtrado$Meses_InicioPAS_FechaInforme,
+        main = "Periodo 2",
+        ylab = "Meses",
+        col = "lightgreen")
+
+# Restaurar la configuración de la ventana gráfica a su estado original
+par(mfrow = c(1, 1))
 
 # Crear un data frame con los resultados
 promedios <- data.frame(
-  Transicion = c("Periodo de incumplimiento", "Determinación de multa"),
+  Transicion = c("Periodo 1", "Periodo 2"),
   Meses_Promedio = c(promedio_FinSup_InicioPAS, promedio_InicioPAS_FechaInforme))
 
 promedios$ID <- seq(1, nrow(promedios))
@@ -358,17 +619,13 @@ ggplot(promedios, aes(x = Transicion, y = Meses_Promedio, fill = Transicion)) +
   geom_bar(stat = "identity", width = 0.6, color = "black") +
   labs(x = "Transición", y = "Meses promedio") +
   theme_minimal() +
-  scale_fill_manual(
-    values = c("lightcoral", "skyblue")) +
+  scale_fill_manual(values = c("lightcoral", "skyblue")) +
   geom_text(aes(label = round(Meses_Promedio, 0)), vjust = -0.5) +
-  theme(
-    legend.position = "bottom",           
-    legend.title = element_blank()) +
-  guides(fill = guide_legend(title = NULL))
+  theme(legend.position = "none")
 
 # Calcular los máximo de cada transición
-max_FinSup_InicioPAS <- max(Fechas$Meses_FinSup_InicioPAS, na.rm = TRUE)
-max_InicioPAS_FechaInforme <- max(Fechas$Meses_InicioPAS_FechaInforme, na.rm = TRUE)
+max_FinSup_InicioPAS <- max(Fechas_Hechos$Meses_FinSup_InicioPAS, na.rm = TRUE)
+max_InicioPAS_FechaInforme <- max(Fechas_Hechos$Meses_InicioPAS_FechaInforme, na.rm = TRUE)
 
 # Crear un data frame con los resultados
 maximos <- data.frame(
@@ -449,297 +706,7 @@ ggplot(Max_sector, aes(x = SectorEco, y = Meses_max, fill = Transicion)) +
   ) +
   guides(fill = guide_legend(title = NULL))
 
-# Periodo de incumplimiento: Del fin de la supervisión al Inicio de PAS
-# Determinación de la multa: De Inicio de PAS a Informe de Sanción
 
-
-### --- Otros estadísticos --- ###
-
-## Creando la variable de ocurrencia
-Unique <- FINAL %>%
-  distinct(year, Expediente, RUC)
-
-# Contando la recurrencia de cada RUC (administrado) por año
-Recurrencia <- Unique %>%
-  group_by(year, RUC) %>%
-  summarise(Recurrencia = n()) %>%
-  ungroup()
-
-# Uniendo el conteo con los expedientes únicos por año
-Colapsado <- Recurrencia %>%
-  left_join(Unique, by = c("year", "RUC")) %>%
-  dplyr::select(year, Expediente, Recurrencia)
-
-#library(writexl)
-#write_xlsx(FINAL, "D:/NUEVO D/LOCACION OEFA/Bases/FINAL.xlsx")
-
-FINAL$Index <- paste(FINAL$year, FINAL$Expediente, sep = "_")
-Colapsado$Index <- paste(Colapsado$year, Colapsado$Expediente, sep = "_")
-Filtro <- Colapsado[, c("Index", "Recurrencia")]
-FINAL <- merge(FINAL, Filtro, by = "Index", all.x = TRUE)
-rm(Colapsado, Filtro, Recurrencia, Unique)
-
-# Administrados únicos por año
-
-Admin_Año <- FINAL %>%
-  group_by(year) %>%
-  summarise(count = n_distinct(RUC))
-
-ggplot(Admin_Año, aes(x = factor(year), y = count, fill = factor(year))) +
-  geom_bar(stat = "identity") +
-  geom_text(aes(label = count), vjust = -0.5, size = 5) +
-  scale_fill_brewer(palette = "Set3") +  
-  labs(x = "Año", 
-       y = "Número de Administrados") +
-  theme_minimal(base_size = 15) +  
-  theme(legend.position = "none") 
-
-rm(Admin_Año)
-
-# Sanciones por sector económico
-
-ggplot(FINAL, aes(x = SectorEco, y = Sancion_total, fill = SectorEco)) +
-  geom_boxplot() +
-  labs(x = "Sector",
-       y = "Sanción total") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "none")
-
-# Sanciones por sector económico y año
-ggplot(FINAL, aes(x = SectorEco, y = Sancion_total, fill = factor(year))) +
-  geom_boxplot() +
-  labs(x = "Sector",
-       y = "Sanción total") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.title = element_blank(), 
-        legend.position = "bottom") +
-  scale_fill_brewer(palette = "Set1") 
-
-
-# Histograma por sector 
-ggplot(data = FINAL, aes(x = Prob_Detección, fill = SectorEco)) +
-  geom_histogram(position = "dodge", binwidth = 0.12, color = "black") +  
-  labs(x = "Probabilidad de detección",             
-       y = "Frecuencia") +                            
-  theme_minimal() +
-  theme(legend.position = "bottom",          
-        legend.title = element_blank())
-
-# Histograma de probabilidad de detección para Agricultura
-
-Agricultura <- subset(FINAL, sector == "Agricultura")
-
-ggplot(data = Agricultura, aes(x = Prob_Detección, fill = factor(year))) +
-  geom_histogram(position = "dodge", binwidth = 0.12, color = "black") +  
-  labs(x = "Probabilidad de detección",             
-       y = "Frecuencia", 
-       fill = "Año") +                            
-  theme_minimal() +
-  theme(legend.position = "bottom",          
-        legend.title = element_blank())
-
-# Histograma de probabilidad de detección para Minería
-
-Mineria <- subset(FINAL, sector == "Minería")
-
-ggplot(data = Mineria, aes(x = Prob_Detección, fill = factor(year))) +
-  geom_histogram(position = "dodge", binwidth = 0.12, color = "black") +  
-  labs(x = "Probabilidad de detección",             
-       y = "Frecuencia", 
-       fill = "Año") +                            
-  theme_minimal() +
-  theme(legend.position = "bottom",          
-        legend.title = element_blank())
-
-# Histograma de probabilidad de detección para Electricidad
-
-Electricidad <- subset(FINAL, sector == "Electricidad")
-
-ggplot(data = Electricidad, aes(x = Prob_Detección, fill = factor(year))) +
-  geom_histogram(position = "dodge", binwidth = 0.12, color = "black") +  
-  labs(x = "Probabilidad de detección",             
-       y = "Frecuencia", 
-       fill = "Año") +                            
-  theme_minimal() +
-  theme(legend.position = "bottom",          
-        legend.title = element_blank())
-
-# Histograma de probabilidad de detección para Industria
-
-Industria <- subset(FINAL, sector == "Industria")
-
-ggplot(data = Industria, aes(x = Prob_Detección, fill = factor(year))) +
-  geom_histogram(position = "dodge", binwidth = 0.12, color = "black") +  
-  labs(x = "Probabilidad de detección",             
-       y = "Frecuencia", 
-       fill = "Año") +                            
-  theme_minimal() +
-  theme(legend.position = "bottom",          
-        legend.title = element_blank())
-
-# Histograma de probabilidad de detección para Pesquería
-
-Pesqueria <- subset(FINAL, sector == "Pesquería")
-
-ggplot(data = Pesqueria, aes(x = Prob_Detección, fill = factor(year))) +
-  geom_histogram(position = "dodge", binwidth = 0.12, color = "black") +  
-  labs(x = "Probabilidad de detección",             
-       y = "Frecuencia", 
-       fill = "Año") +                            
-  theme_minimal() +
-  theme(legend.position = "bottom",          
-        legend.title = element_blank())
-
-# Histograma de probabilidad de detección para hidrocarburos
-
-Hidrocarburos <- subset(FINAL, sector == "Hidrocarburos")
-
-ggplot(data = Hidrocarburos, aes(x = Prob_Detección, fill = factor(year))) +
-  geom_histogram(position = "dodge", binwidth = 0.12, color = "black") +  
-  labs(x = "Probabilidad de detección",             
-       y = "Frecuencia", 
-       fill = "Año") +                            
-  theme_minimal() +
-  theme(legend.position = "bottom",          
-        legend.title = element_blank())
-
-# Histograma de probabilidad de detección para Residuos Sólidos
-
-Residuos <- subset(FINAL, sector == "Residuos Sólidos")
-
-ggplot(data = Residuos, aes(x = Prob_Detección, fill = factor(year))) +
-  geom_histogram(position = "dodge", binwidth = 0.12, color = "black") +  
-  labs(x = "Probabilidad de detección",             
-       y = "Frecuencia", 
-       fill = "Año") +                            
-  theme_minimal() +
-  theme(legend.position = "bottom",          
-        legend.title = element_blank())
-
-
-# Duración promedio de la supervisión por sector y año
-
-FINAL$InicioSup <- as.numeric(FINAL$InicioSup)
-FINAL$FinSup <- as.numeric(FINAL$FinSup)
-
-Supervisiones <- FINAL %>%
-  mutate(InicioSup = as.Date(InicioSup, format = "%Y-%m-%d"), 
-         FinSup = as.Date(FinSup, format = "%Y-%m-%d")) %>%
-  mutate(Duracion = as.numeric(difftime(FinSup, InicioSup, units = "days"))) %>%
-  group_by(SectorEco, year) %>%
-  summarize(DuracionPromedio = round(mean(Duracion, na.rm = TRUE), 1))
-
-colnames(Supervisiones)[colnames(Supervisiones) == "DuracionPromedio"] <- "Duracion"
-
-# Tiempo promedio de las supervisiones por sector y año
-ggplot(Supervisiones, aes(x = SectorEco, y = Duracion, fill = SectorEco)) +  
-  geom_bar(stat = "identity", position = position_dodge(width = 0.9), aes(group = factor(year))) +  
-  coord_flip() +  
-  geom_text(aes(label = sprintf("%.1f", Duracion), group = factor(year)),  
-            position = position_dodge(width = 0.9), 
-            hjust = -0.1, size = 3) +  
-  labs(x = "Sector",
-       y = "Duración Promedio (días)",
-       fill = "Sector") +  
-  scale_fill_brewer(palette = "Set3") +  
-  theme_minimal() +
-  theme(legend.position = "none")
-
-# Tiempo promedio de las supervisiones por sector y año en escala
-
-colores <- c("2022" = "#FFCCCC",  # Naranja pastel
-                    "2023" = "#FF6666",  # Azul pastel
-                    "2024" = "#800000")  # Rojo pastel
-
-ggplot(Supervisiones, aes(x = SectorEco, y = Duracion, fill = factor(year))) +  
-  geom_bar(stat = "identity", position = position_dodge(width = 0.9), aes(group = factor(year))) +  
-  coord_flip() +  
-  geom_text(aes(label = sprintf("%.1f", Duracion), group = factor(year)),  
-            position = position_dodge(width = 0.9), 
-            hjust = -0.1, size = 3) +  
-  labs(x = "Sector",
-       y = "Duración Promedio (días)",
-       fill = "Año") +  
-  scale_fill_manual(values = colores) + 
-  theme_minimal() +
-  theme(legend.position = "right") 
-
-# Incumplimientos por sectores
-
-Incumplimientos <- FINAL %>%
-  group_by(SectorEco, year) %>%
-  summarise(Conteo = n()) %>%
-  ungroup()
-
-ggplot(Incumplimientos, aes(x = SectorEco, y = Conteo, fill = SectorEco)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  geom_text(aes(label = Conteo), vjust = -0.5, color = "black") +
-  labs(x = "Sector Económico",
-       y = "Conteo de Incumplimientos") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "none") + 
-  scale_fill_brewer(palette = "Pastel1") +
-  facet_wrap(~ year)
-
-rm(Incumplimientos)
-
-
-# Probabilidad promedio por departamento
-
-FINAL <- FINAL %>%
-  mutate(Departamento = ifelse(Departamento == "Lima / Lima", "Lima", Departamento))
-
-FINAL <- FINAL %>%
-  mutate(Departamento = ifelse(Departamento == "Loreto Loreto", "Loreto", Departamento))
-
-FINAL <- FINAL %>%
-  mutate(Departamento = ifelse(Departamento == "Piura / Piura", "Piura", Departamento))
-
-FINAL <- FINAL %>%
-  mutate(Departamento = iconv(Departamento, from = "UTF-8", to = "ASCII//TRANSLIT"))
-
-Prob_mean <- FINAL %>%
-  group_by(Departamento) %>%
-  summarise(Prob_Promedio = mean(Prob_Detección, na.rm = TRUE))
-
-Prob_mean$Long <- nchar(Prob_mean$Departamento)
-
-Prob_mean <- Prob_mean %>% filter(Long<15)
-Prob_mean <- Prob_mean %>% filter(Long!=14)
-
-Peru <- st_read(dsn = "D:/NUEVO D/UNIANDES/ECONOMIA URBANA/CBD Peru/Shape/PER_adm1.shp")
-
-colnames(Peru)[colnames(Peru) == "NAME_1"] <- "Departamento"
-
-Peru <- Peru %>%
-  mutate(Departamento = iconv(Departamento, from = "UTF-8", to = "ASCII//TRANSLIT"))
-
-Mapa <- Peru %>%
-  left_join(Prob_mean, by = "Departamento")
-
-Mapa <- Mapa %>%
-  mutate(Prob_Promedio = ifelse(Departamento == "Lima Province", 0.7174107, Prob_Promedio))
-
-mapview(Mapa, zcol = "Prob_Promedio", legend = TRUE,
-            layer.name = c("Prob. Detección")) 
-
-
-# Correlación entre Probabilidad de detección y Multas
-
-cor(FINAL$Prob_Detección, FINAL$Sancion_total, use = "complete.obs")
-cor(FINAL$Prob_Detección, FINAL$Multa_Final, use = "complete.obs")
-
-Num1 <- FINAL[, c("Prob_Detección", "Sancion_total")]
-Num2 <- FINAL[, c("Prob_Detección", "Multa_Final")]
-
-Matriz1 <- cor(Num1, use = "complete.obs")
-Matriz2 <- cor(Num2, use = "complete.obs")
-
-print(Matriz1)
-print(Matriz2)
 
 ### --- Informes excluidos --- ###
 
@@ -822,116 +789,3 @@ ggplot(Colapsado, aes(x = Año, y = Total, fill = Hecho_imputado)) +
 
 knitr::kable(head(Colapsado))
 
-
-### ------ Modelo econométrico ------ ###
-FINAL$InicioSup <- as.numeric(FINAL$InicioSup)
-FINAL$FinSup <- as.numeric(FINAL$FinSup)
-FINAL$InicioSup <- as.Date(FINAL$InicioSup, origin = "1899-12-30")
-FINAL$FinSup <- as.Date(FINAL$FinSup, origin = "1899-12-30")
-FINAL$DuracionSup <- as.numeric(FINAL$FinSup - FINAL$InicioSup)
-
-
-FINAL <- FINAL %>%
-  mutate(Incumplimiento1 = case_when(
-    Incumplimiento1 == 'Incumplimiento de Límites Máximos Permisibles en efluentes' ~ 'Incumplimiento LMP',
-    Incumplimiento1 == 'Incumplimiento de Límites Máximos Permisibles en emisiones' ~ 'Incumplimiento LMP',
-    Incumplimiento1 == 'Incumplimiento del Instrumento de Gestión Ambiental' ~ 'Incumplimiento IGA',
-    Incumplimiento1 == 'No contar con Instrumentos de Gestión Ambiental' ~ 'Incumplimiento IGA',
-    Incumplimiento1 == 'Incumplimiento de medidas administrativas (medidas cautelares, medidas correctivas y preventivas)' ~ 'Incumplimiento de medidas administrativas',
-    Incumplimiento1 == 'No brindar información, presentar información inexacta o fuera de plazo' ~ 'No presentó información',
-    Incumplimiento1 == 'No efectuar monitoreos (en el plazo, alcance y/o frecuencia)' ~ 'No efectuar monitoreos',
-    Incumplimiento1 == 'Obstaculizar o impedir labores de supervisión y/o fiscalización' ~ 'Obstaculizar o impedir labores',
-    TRUE ~ Incumplimiento1))
-
-
-table(FINAL$Incumplimiento1)
-
-BD <- read_dta("C:/Users/Paolo/Desktop/Sunat/S192021.dta")
-colnames(FINAL)[colnames(FINAL) == "RUC"] <- "ruc"
-BD$ruc <- as.character(BD$ruc)
-FINAL <- left_join(x = FINAL, y = BD, by="ruc")
-
-# OLS de corte transversal (2024)
-A2022 <- FINAL %>% filter(year==2022)
-A2023 <- FINAL %>% filter(year==2023)
-A2024 <- FINAL %>% filter(year==2024)
-
-#Modelo22 <- lm(log(Sancion_total) ~ log(Costo_evitado) + Prob_Detección + factor(sector)
-#               + T_meses + DuracionSup + Recurrencia + factor(descripcion_contri) + 
-#                 factor(tamano_ven), data = A2022)
-
-Modelo22 <- lm(log(Sancion_total) ~ log(Costo_evitado) + Prob_Detección + factor(sector)
-               + T_meses + DuracionSup + Recurrencia  + factor(tamano_ven) + 
-                 factor(Incumplimiento1), data = A2022)
-
-# H0: No hay error de especificación
-resettest(Modelo22)
-# QQplot: Desviación de los residuos
-qqPlot(Modelo22$residuals)
-# H0: distribuyen normal los residuos
-jarque.bera.test(Modelo22$residuals)
-# H0: Homocedasticidad
-bptest(Modelo22)
-
-#Modelo23 <- lm(Sancion_total ~ Costo_evitado + Prob_Detección + factor(sector)
-#               + T_meses + DuracionSup + Recurrencia + factor(descripcion_contri) + 
-#                 factor(tamano_ven), data = A2023)
-
-Modelo23 <- lm(log(Sancion_total) ~ log(Costo_evitado) + Prob_Detección + factor(sector)
-               + T_meses + DuracionSup + Recurrencia  + factor(tamano_ven) + 
-                 factor(Incumplimiento1), data = A2023)
-
-# H0: No hay error de especificación
-resettest(Modelo23)
-# QQplot: Desviación de los residuos
-qqPlot(Modelo23$residuals)
-# H0: distribuyen normal los residuos
-jarque.bera.test(Modelo23$residuals)
-# H0: Homocedasticidad
-bptest(Modelo23)
-
-
-#Modelo24 <- lm(Sancion_total ~ Costo_evitado + Prob_Detección + factor(sector)
-#               + T_meses + DuracionSup + Recurrencia + factor(descripcion_contri) + 
-#                 factor(tamano_ven), data = A2024)
-
-Modelo24 <- lm(log(Sancion_total) ~ log(Costo_evitado) + Prob_Detección + factor(sector)
-               + T_meses + DuracionSup + Recurrencia  + factor(tamano_ven) + 
-                 factor(Incumplimiento1), data = A2024)
-
-# H0: No hay error de especificación
-resettest(Modelo24)
-# QQplot: Desviación de los residuos
-qqPlot(Modelo24$residuals)
-# H0: distribuyen normal los residuos
-jarque.bera.test(Modelo24$residuals)
-# H0: Homocedasticidad
-bptest(Modelo24)
-
-stargazer(Modelo22, Modelo23, Modelo24, type = "text",  out="D:/NUEVO D/LOCACION OEFA/Informes/Segunda OS/Informe 01/Resultados/Modelo.tex")
-
-# Elección discreta
-table(A2022$Prob_Detección)
-Logit <- glm(Prob_Detección ~ factor(sector) + DuracionSup, data = A2022, family = binomial(link = "logit"))
-stargazer(Logit, type = "text")
-
-# Panel data
-
-#library(plm)
-
-#Panel <- pdata.frame(FINAL, index = c("Num_Imputacion","year"))
-
-# Eliminar filas con NA en las variables de índice
-#Panel <- Panel[complete.cases(Panel$Num_Imputacion, Panel$year), ]
-
-# Eliminar duplicados
-#Panel <- Panel[!duplicated(Panel[, c("Num_Imputacion", "year")]), ]
-
-#Pooled <- plm(Sancion_total ~ Costo_evitado + Prob_Detección + factor(sector), data = Panel, model = "pooling")
-#FE <- plm(Sancion_total ~ Costo_evitado + Prob_Detección + factor(sector), data = Panel, model = "within")
-
-#summary(Pooled)
-#summary(FE)
-
-# Pooled vs Efectos Fijos
-#pFtest(FE, Pooled)
