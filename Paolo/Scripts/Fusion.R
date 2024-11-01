@@ -2,7 +2,7 @@
 require(pacman)
 p_load(foreign, tidyverse, rio, here, dplyr, viridis, readxl, stringr, RColorBrewer, ggcorrplot,  
         flextable, officer, classInt, foreign, stargazer, sf, mapview, leaflet, writexl, lmtest,
-       tseries, car, haven, officer, xlsx, openxlsx)
+       tseries, car, haven, officer, xlsx, openxlsx, httr)
 
 rm(list = ls())
 
@@ -10,10 +10,21 @@ rm(list = ls())
 ###### Informes de sanción ########
 ###################################
 
-# Carga de información
+# Carga de información del Consolidado
+url1 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/dfunido.xlsx"
+temp_file <- tempfile(fileext = ".xlsx")
+GET(url1, write_disk(temp_file, overwrite = TRUE))
+Consolidado <- read_excel(temp_file, sheet = "Sheet 1")  
+rm(temp_file, url1)
+#Consolidado <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/dfunido.xlsx", sheet = "Sheet 1")
 
-Consolidado <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/dfunido.xlsx", sheet = "Sheet 1")
-RUIAS <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/RUIAS-CSEP.xlsx", sheet = "RUIAS")
+# Carga de información de RUIAS
+url2 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/RUIAS-CSEP.xlsx"
+temp_file <- tempfile(fileext = ".xlsx")
+GET(url2, write_disk(temp_file, overwrite = TRUE))
+RUIAS <- read_excel(temp_file, sheet = "RUIAS")  
+rm(temp_file, url2)
+#RUIAS <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/RUIAS-CSEP.xlsx", sheet = "RUIAS")
 
 # Quitando las observaciones que no usaremos del consolidado
 
@@ -102,16 +113,23 @@ Revision3 <- Revision2 %>%
 
 rm(Extremos, Revision, Revision2, Revision3)
 
-# 798 - 245 = 553 Hechos imputados
-# 553 + 64 = 617 Hechos imputados
+# 797 - 245 = 552 Hechos imputados
+# 552 + 64 = 616 Hechos imputados
 
 ###################################
 ###### Fechas de informes ########
 ###################################
 
-F2022 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Fechas/Fecha_2022.xlsx", sheet = "2022")
-F2023 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Fechas/Fecha_2023.xlsx", sheet = "2023")
-F2024 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Fechas/Fecha_2024.xlsx", sheet = "2024")
+# Bucle para descargar y leer los archivos por año
+years <- c(2022, 2023, 2024)
+for (year in years) {
+  url <- paste0("https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Fechas/Fecha_", year, ".xlsx")
+  temp_file <- tempfile(fileext = ".xlsx")
+  GET(url, write_disk(temp_file, overwrite = TRUE))
+  assign(paste0("F", year), read_excel(temp_file, sheet = as.character(year)))
+  rm(temp_file, url)
+}
+rm(year, years)
 
 Fechas <- rbind(F2022, F2023, F2024)
 
@@ -125,12 +143,21 @@ rm(Fechas)
 ##### Factores de graduación ######
 ###################################
 
-G2022 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Factores/Copia de Informes_2022.xlsx", 
-                   sheet = "Graduacion")
-G2023 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Factores/Copia de Informes_2023.xlsx", 
-                   sheet = "Graduacion")
-G2024 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Factores/Copia de Informes_2024.xlsx", 
-                   sheet = "Graduacion")
+# Bucle para leer los archivos por año
+years <- c(2022, 2023, 2024)
+Factores <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Factores/Copia%20de%20Informes_"
+for (year in years) {
+  url <- paste0(Factores, year, ".xlsx")
+  temp_file <- tempfile(fileext = ".xlsx")
+  GET(url, write_disk(temp_file, overwrite = TRUE))
+  assign(paste0("G", year), read_excel(temp_file, sheet = "Graduacion"))
+  rm(temp_file, url)
+}
+rm(Factores, year, years)
+
+#G2022 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Factores/Copia de Informes_2022.xlsx", sheet = "Graduacion")
+#G2023 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Factores/Copia de Informes_2023.xlsx", sheet = "Graduacion")
+#G2024 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Factores/Copia de Informes_2024.xlsx", sheet = "Graduacion")
 
 # Quitando de las bases las categorías a no emplear
 G2022F<- G2022 %>%
@@ -163,7 +190,12 @@ Aglomerado <- rbind(G2022F, G2023F, G2024F)
 rm(G2022,G2022F, G2023, G2023F, G2024,G2024F)
 
 # Cargando la base de DFUNIDO
-Consolidado <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/dfunido.xlsx", sheet = "Sheet 1")
+#Consolidado <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/dfunido.xlsx", sheet = "Sheet 1")
+url1 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/dfunido.xlsx"
+temp_file <- tempfile(fileext = ".xlsx")
+GET(url1, write_disk(temp_file, overwrite = TRUE))
+Consolidado <- read_excel(temp_file, sheet = "Sheet 1")  
+rm(temp_file, url1)
 
 # Seleccionando las variables
 Consolidado <- Consolidado %>% dplyr::select("Informes", "Propuesta_Multa")
@@ -178,18 +210,33 @@ Fusion <-left_join(x = Aglomerado, y = Unicos, by="Informes")
 rm(Consolidado, Aglomerado, Unicos)
 
 # Exportando
-#write_xlsx(Fusion, path = "D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Factores/Factores.xlsvx")
+#write_xlsx(Fusion, path = "D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Factores/Factores.xlsx")
+
+table(Fusion$Propuesta_Multa, useNA = "ifany")
 
 Fusion <- Fusion %>%
   filter(is.na(Propuesta_Multa))
 
 FACTORES <- Fusion %>%
   filter(!(Informes == "00575-2023-OEFA/DFAI-SSAG" & Imputacion == 1))
+rm(Fusion)
 
 FACTORES <- FACTORES %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agravantes", "Categoria_FA", "% FA")
+table(FACTORES$Factores_agravantes, useNA = "ifany")
 
-rm(Fusion)
-#write.xlsx(Fusion,"D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/INFORMES_GRADUACION.xlsx", sheet = "Factores")
+Filtro <- FACTORES[FACTORES$Factores_agravantes %in% c("F1", "F2", "F3", "F5", "F6"), ]
+table(Filtro$Factores_agravantes, useNA = "ifany")
+
+# Gráfico de barras de factores
+ggplot(Filtro, aes(x = Factores_agravantes)) +
+  geom_bar(fill = "skyblue", color = "black") +
+  geom_text(stat = 'count', aes(label = ..count..), vjust = -0.5) + 
+  labs(x = " ",
+       y = "Factores atenuantes y agravantes") +
+  theme_minimal()
+
+rm(Filtro)
+#write.xlsx(Filtro,"D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/INFORMES_GRADUACION.xlsx")
 
 ###################################
 ###### Exportando las bases #######
@@ -197,15 +244,15 @@ rm(Fusion)
 
 wb <- createWorkbook()
 
-# Añadir la primera hoja con el primer dataframe
+# Añadiendo la primera hoja con el primer dataframe
 addWorksheet(wb, "Informes")
 writeData(wb, "Informes", FINAL)
 
-# Añadir la segunda hoja con el segundo dataframe
+# Añadiendo la segunda hoja con el segundo dataframe
 addWorksheet(wb, "Factores")
-writeData(wb, "Factores", Fusion)
+writeData(wb, "Factores", FACTORES)
 
-# Guardar el archivo Excel
+# Guardardando el archivo Excel
 saveWorkbook(wb, "D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/INFORMES_GRADUACION.xlsx", overwrite = TRUE)
 
 
@@ -361,7 +408,6 @@ Ext_colaps <- Extremos %>%
                          max(Multa_Final, na.rm = TRUE)), .groups = 'drop')
 
 Hechos_Multas <- rbind(Hechos, Ext_colaps)
-
 rm(Ext_colaps, Hechos, General, Extremos)
 
 Est1 <- Hechos_Multas %>%
@@ -377,17 +423,10 @@ Est1 <- Hechos_Multas %>%
 
 #write_xlsx(Est1, "D:/NUEVO D/LOCACION OEFA/Informes/Tercera OS/Informe 5/Graficos/Tabla_Año.xlsx")
 
-# Gráfico de cajas con outliers
-
-Multa1 <-  ggplot(Hechos_Multas, aes(x = factor(year), y = Multa_Final)) +
-         geom_boxplot(fill = "darkolivegreen4", color = "black", outlier.colour = "black") +
-         labs(x = "Año", y = "Multa final (en UIT)") +
-         theme_minimal()
-
 # Ahora sin considerar outliers
 Filtro <- Hechos_Multas %>%
   group_by(year) %>%
-  filter(Multa_Final <= quantile(Multa_Final, 0.70, na.rm = TRUE)) %>%
+  filter(Multa_Final <= quantile(Multa_Final, 0.90, na.rm = TRUE)) %>%
   ungroup()  
 
 Est2 <- Filtro %>%
@@ -407,19 +446,31 @@ Est3 <- Filtro %>%
     promedio = mean(Multa_Final, na.rm = TRUE),  
     .groups = 'drop')
 
-# Gráfico de cajas sin outliers
-Multa2 <- ggplot(Filtro, aes(x = factor(year), y = Multa_Final)) +
-          geom_boxplot(fill = "darkgoldenrod2", color = "black", outlier.colour = "black") +  
-          labs(x = "Año", y = "Multa final (en UIT)") +
-          theme_minimal()
 
-library(patchwork)
-MultaF <- Multa1 / Multa2 
-MultaF
+# Configurando la ventana gráfica para mostrar 2 gráficos en 1 fila
+par(mfrow = c(1, 2))
 
-rm(Est1, Est2, Est3, Filtro, Multa1, Multa2, MultaF, Hechos_Multas)
+# Gráfico 1: Distribución de las multas con outliers
+boxplot(Hechos_Multas$Multa_Final ~ Hechos_Multas$year,
+        main = "Con outliers",
+        ylab = "Multa final (en UIT)",
+        col = "darkolivegreen4",
+        outline = TRUE)
 
-### ---- Por sectores ---- ###
+# Gráfico 2: Distribución de las multas sin outliers
+boxplot(Filtro$Multa_Final ~ Filtro$year,
+        main = "Sin outliers", 
+        ylab = "Multa final (en UIT)",
+        col = "darkgoldenrod2",
+        outline = TRUE)
+
+# Restaurar la configuración de la ventana gráfica a su estado original
+par(mfrow = c(1, 1))
+
+
+rm(Est1, Est2, Est3, Filtro, Hechos_Multas)
+
+### ---- Distribución de multas por sectores ---- ###
 General <- FINAL %>% dplyr::select(Informes, Num_Imputacion, Colapsar, year, Multa_Final, SectorEco)
 Hechos <- General %>% filter(is.na(Colapsar))
 Hechos <- Hechos %>% dplyr::select(Informes, Num_Imputacion, year, Multa_Final,  SectorEco)
@@ -447,30 +498,40 @@ Est4 <- Hechos_Multas %>%
     maximo = round(max(Multa_Final, na.rm = TRUE), 0),
     .groups = 'drop')
 
-write_xlsx(Est4, "D:/NUEVO D/LOCACION OEFA/Informes/Tercera OS/Informe 5/Graficos/Tabla_Sectores.xlsx")
-
-# Gráfico de cajas con outliers por sectores
-Multa3 <- ggplot(Hechos_Multas, aes(x = factor(SectorEco), y = Multa_Final)) +
-          geom_boxplot(fill = "darkolivegreen4", color = "black", outlier.colour = "black") +
-          labs(x = "Sector Económico", y = "Multa final (en UIT)") +
-          theme_minimal()
+#write_xlsx(Est4, "D:/NUEVO D/LOCACION OEFA/Informes/Tercera OS/Informe 5/Graficos/Tabla_Sectores.xlsx")
 
 # Ahora sin considerar outliers
 Filtro2 <- Hechos_Multas %>%
            group_by(SectorEco) %>%
-           filter(Multa_Final <= quantile(Multa_Final, 0.70, na.rm = TRUE)) %>%
+           filter(Multa_Final <= quantile(Multa_Final, 0.90, na.rm = TRUE)) %>%
            ungroup() 
 
-Multa4 <-   ggplot(Filtro2, aes(x = factor(SectorEco), y = Multa_Final)) +
-            geom_boxplot(fill = "darkgoldenrod2", color = "black", outlier.colour = "black") +  
-            labs(x = "Año", y = "Multa final (en UIT)") +
-            theme_minimal()
 
+# Configurando la ventana gráfica para mostrar 2 gráficos en 1 fila
+par(mfrow = c(2, 1))
 
-MultaF2 <- Multa3 / Multa4 
-MultaF2
+# Gráfico 1: Distribución de las multas por sectores con outliers
+boxplot(Hechos_Multas$Multa_Final ~ Hechos_Multas$SectorEco,
+        xlab = "Sector Económico",
+        ylab = "Multa final (en UIT)",
+        col = "darkolivegreen4",
+        main = "Con outliers",
+        outline = TRUE,
+        cex.axis = 0.65)
 
-rm(Est4, Multa3, Multa4, Hechos_Multas, Filtro2, MultaF2)
+# Gráfico 2: Distribución de las multas por sectores sin outliers
+boxplot(Filtro2$Multa_Final ~ Filtro2$SectorEco,
+        xlab = "Sector Económico",
+        ylab = "Multa final (en UIT)",
+        col = "darkgoldenrod2",
+        main = "Sin outliers",
+        outline = TRUE,
+        cex.axis = 0.65)
+
+# Restaurar la configuración de la ventana gráfica a su estado original
+par(mfrow = c(1, 1))
+
+rm(Est4, Hechos_Multas, Filtro2)
 
 ### --- Tabla estadística del Beneficio Ilícito por sector --- ###
 
@@ -498,7 +559,7 @@ Est5 <- Hechos_Ilicitos %>%
     Max = max(Beneficio_ilícito, na.rm = TRUE))
 
 # Ver la tabla generada
-write_xlsx(Est5, "D:/NUEVO D/LOCACION OEFA/Informes/Tercera OS/Informe 5/Graficos/Tabla_beneficio.xlsx")
+#write_xlsx(Est5, "D:/NUEVO D/LOCACION OEFA/Informes/Tercera OS/Informe 5/Graficos/Tabla_beneficio.xlsx")
 
 # Grafico de cajas del beneficio ilicito por sector
 
@@ -507,7 +568,7 @@ BI_Sectores <- Hechos_Ilicitos %>%
 
 Filtro3 <- BI_Sectores %>%
   group_by(SectorEco) %>%
-  filter(Beneficio_ilícito <= quantile(Beneficio_ilícito, 0.70, na.rm = TRUE)) %>%
+  filter(Beneficio_ilícito <= quantile(Beneficio_ilícito, 0.90, na.rm = TRUE)) %>%
   ungroup() 
 
 # Ajusta los márgenes (c(bottom, left, top, right))
@@ -515,12 +576,14 @@ par(mfrow = c(2, 1), mar = c(3, 4, 2, 1))
 
 # Gráfico de cajas con outliers por sectores
 boxplot(Beneficio_ilícito ~ SectorEco, data = BI_Sectores,
+        main = "Con outliers",
         xlab = "Sector Económico", ylab = "Beneficio ilícito (en UIT)",
         col = "lightblue", border = "black", outlier.colour = "black",
         cex.axis = 0.55)  
 
 # Gráfico de cajas sin outliers por sectores
 boxplot(Beneficio_ilícito ~ SectorEco, data = Filtro3,
+        main = "Sin outliers",
         xlab = "Sector Económico", ylab = "Beneficio ilícito (en UIT)",
         col = "lightblue", border = "black", outlier.colour = "black",
         cex.axis = 0.55)  
@@ -528,6 +591,7 @@ boxplot(Beneficio_ilícito ~ SectorEco, data = Filtro3,
 # Restablece la configuración de gráficos
 par(mfrow = c(1, 1))
 
+rm(BI_Sectores, Est5, Ext_colaps, Extremos, Filtro3, General, Hechos, Hechos_Ilicitos)
 
 ### --- Gráfico de Tiempo Promedio --- ###
 
@@ -590,13 +654,13 @@ Fechas_Filtrado <- Fechas_Hechos %>%
 par(mfrow = c(1, 2))
 
 # Gráfico 1: Periodo de Incumplimiento (FinSup a InicioPAS)
-boxplot(Fechas_Filtrado$Meses_FinSup_InicioPAS,
+boxplot(Fechas_Hechos$Meses_FinSup_InicioPAS,
         main = "Periodo 1",
         ylab = "Meses",
         col = "lightblue")
 
 # Gráfico 2: Determinación de la multa (InicioPAS a Informe de Sanción)
-boxplot(Fechas_Filtrado$Meses_InicioPAS_FechaInforme,
+boxplot(Fechas_Hechos$Meses_InicioPAS_FechaInforme,
         main = "Periodo 2",
         ylab = "Meses",
         col = "lightgreen")
@@ -712,12 +776,20 @@ ggplot(Max_sector, aes(x = SectorEco, y = Meses_max, fill = Transicion)) +
 
 rm(list = ls())
 
-G2022 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Factores/Copia de Informes_2022.xlsx", 
-                   sheet = "Componentes")
-G2023 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Factores/Copia de Informes_2023.xlsx", 
-                   sheet = "Componentes")
-G2024 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Factores/Copia de Informes_2024.xlsx", 
-                   sheet = "Componentes")
+years <- c(2022, 2023, 2024)
+Factores <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Factores/Copia%20de%20Informes_"
+for (year in years) {
+  url <- paste0(Factores, year, ".xlsx")
+  temp_file <- tempfile(fileext = ".xlsx")
+  GET(url, write_disk(temp_file, overwrite = TRUE))
+  assign(paste0("G", year), read_excel(temp_file, sheet = "Componentes"))
+  rm(temp_file, url)
+}
+rm(Factores, year, years)
+
+#G2022 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Factores/Copia de Informes_2022.xlsx", sheet = "Componentes")
+#G2023 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Factores/Copia de Informes_2023.xlsx", sheet = "Componentes")
+#G2024 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Factores/Copia de Informes_2024.xlsx", sheet = "Componentes")
 
 G2022 <- G2022 %>% dplyr::select("ID","Informes", "Hecho_imputado", "Num_Imputacion")
 G2023 <- G2023 %>% dplyr::select("ID","Informes", "Hecho_imputado", "Num_Imputacion")
@@ -731,7 +803,12 @@ G2024$Año <- 2024
 FINAL <- rbind(G2022, G2023, G2024)
 
 # Trayendo el DFUNIDO
-Consolidado <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/dfunido.xlsx", sheet = "Sheet 1")
+#Consolidado <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/dfunido.xlsx", sheet = "Sheet 1")
+url1 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/dfunido.xlsx"
+temp_file <- tempfile(fileext = ".xlsx")
+GET(url1, write_disk(temp_file, overwrite = TRUE))
+Consolidado <- read_excel(temp_file, sheet = "Sheet 1")  
+rm(temp_file, url1)
 
 Consolidado <- Consolidado %>% dplyr::select("Informes", "Propuesta_Multa")
 Consolidado <- Consolidado %>%
