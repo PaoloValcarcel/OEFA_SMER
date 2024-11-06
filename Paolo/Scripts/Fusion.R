@@ -454,6 +454,7 @@ par(mfrow = c(1, 2))
 boxplot(Hechos_Multas$Multa_Final ~ Hechos_Multas$year,
         main = "Con outliers",
         ylab = "Multa final (en UIT)",
+        xlab = " ",
         col = "darkolivegreen4",
         outline = TRUE)
 
@@ -461,12 +462,14 @@ boxplot(Hechos_Multas$Multa_Final ~ Hechos_Multas$year,
 boxplot(Filtro$Multa_Final ~ Filtro$year,
         main = "Sin outliers", 
         ylab = "Multa final (en UIT)",
+        xlab = " ",
         col = "darkgoldenrod2",
         outline = TRUE)
 
 # Restaurar la configuración de la ventana gráfica a su estado original
 par(mfrow = c(1, 1))
 
+### Aquí va el gráfico de cajas con distribuciones del script "Cajas_Distribucion"
 
 rm(Est1, Est2, Est3, Filtro, Hechos_Multas)
 
