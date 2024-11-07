@@ -34,6 +34,14 @@ CFinal <- Consolidado %>%
 colnames(CFinal)[colnames(CFinal) == "ID2"] <- "Index"
 CFinal$Index <- as.character(CFinal$Index)
 
+
+CFinal <- CFinal %>% dplyr::select("ID", "Expediente", "Informes", "Hecho_imputado", 
+                                  "Num_Imputacion","Sub_extremo", "Monto", 
+                                  "COS_anual", "T_meses",  "Costo_evitado", "Unidad_monetaria",
+                                  "Tipo_de_cambio", "Beneficio_ilícito", "Prob_Detección",
+                                  "Multa", "Multa_Final", "Sancion_total",  "Colapsar", "year")
+
+
 # Seleccionando las variables a usar
 
 RFinal <- RUIAS %>% dplyr::select("ID", "Administrado", "RUC", "Sector económico", "Departamento",
