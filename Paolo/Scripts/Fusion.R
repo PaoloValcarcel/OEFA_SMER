@@ -2,7 +2,7 @@
 require(pacman)
 p_load(foreign, tidyverse, rio, here, dplyr, viridis, readxl, stringr, RColorBrewer, ggcorrplot,  
         flextable, officer, classInt, foreign, stargazer, sf, mapview, leaflet, writexl, lmtest,
-       tseries, car, haven, officer, xlsx, openxlsx, httr)
+       tseries, car, haven, officer, xlsx, openxlsx, httr, scales)
 
 rm(list = ls())
 
@@ -36,7 +36,7 @@ CFinal$Index <- as.character(CFinal$Index)
 
 
 CFinal <- CFinal %>% dplyr::select("ID", "Expediente", "Informes", "Hecho_imputado", 
-                                  "Num_Imputacion","Sub_extremo", "Monto", 
+                                  "Num_Imputacion","Sub_extremo", "Monto", "Index",
                                   "COS_anual", "T_meses",  "Costo_evitado", "Unidad_monetaria",
                                   "Tipo_de_cambio", "Beneficio_ilícito", "Prob_Detección",
                                   "Multa", "Multa_Final", "Sancion_total",  "Colapsar", "year")
@@ -95,9 +95,9 @@ FINAL <- FINAL %>%
 
 # Otros ajustes
 
-FINAL <- FINAL %>%
-  select(-Administrado.x) %>%  
-  rename(Administrado = Administrado.y)  
+#FINAL <- FINAL %>%
+#  select(-Administrado.x) %>%  
+#  rename(Administrado = Administrado.y)  
 
 ### Obteniendo el total de hechos imputados, extremos y sub extremos ###
 
@@ -268,12 +268,7 @@ saveWorkbook(wb, "D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/IN
 #### Estadísticas Descriptivas ####
 ###################################
 
-
 ### --- Total de informes de cálculo de multa y hechos imputados --- ###
-### --------- analizados para el período de 2022 a 2024 -----------  ###
-
-
-### ------- Para el total fusionando con RUIIAS ------- ###
 
 Unique <- FINAL %>%
   distinct(year, Informes)
@@ -477,7 +472,9 @@ boxplot(Filtro$Multa_Final ~ Filtro$year,
 # Restaurar la configuración de la ventana gráfica a su estado original
 par(mfrow = c(1, 1))
 
-### Aquí va el gráfico de cajas con distribuciones del script "Cajas_Distribucion"
+######################################################################################
+### Aquí va el gráfico de cajas con distribuciones del script "Cajas_Distribucion" ###
+######################################################################################
 
 rm(Est1, Est2, Est3, Filtro, Hechos_Multas)
 
@@ -501,6 +498,7 @@ Hechos_Multas <- Hechos_Multas %>% dplyr::select(year, Multa_Final, SectorEco)
 Est4 <- Hechos_Multas %>%
   group_by(SectorEco) %>%
   summarise(
+    Sanciones = sum(!is.na(Multa_Final)),
     minimo = round(min(Multa_Final, na.rm = TRUE), 3),
     Q1 = round(quantile(Multa_Final, 0.25, na.rm = TRUE), 2),
     mediana = round(median(Multa_Final, na.rm = TRUE), 2),
@@ -660,7 +658,6 @@ Fechas_Filtrado <- Fechas_Hechos %>%
   filter(Meses_FinSup_InicioPAS <= percentil_90_FinSup_InicioPAS,
          Meses_InicioPAS_FechaInforme <= percentil_90_InicioPAS_FechaInforme)
 
-
 # Configurar la ventana gráfica para mostrar 2 gráficos en 1 fila
 par(mfrow = c(1, 2))
 
@@ -727,8 +724,7 @@ ggplot(maximos, aes(x = Transicion, y = Meses_max, fill = Transicion)) +
 
 # A nivel de sector económico
 
-
-# Calcular los promedios de cada transición por sector económico
+# Calculando los promedios de cada transición por sector económico
 promedios_sector <- Fechas %>%
   group_by(SectorEco) %>%
   summarise(
@@ -754,8 +750,7 @@ ggplot(promedios_sector, aes(x = SectorEco, y = Meses_Promedio, fill = Transicio
     legend.title = element_blank()) +
   guides(fill = guide_legend(title = NULL))
 
-
-# Calcular los máximos de cada transición por sector económico
+# Calculando los máximos de cada transición por sector económico
 Max_sector <- Fechas %>%
   group_by(SectorEco) %>%
   summarise(
@@ -782,6 +777,28 @@ ggplot(Max_sector, aes(x = SectorEco, y = Meses_max, fill = Transicion)) +
   guides(fill = guide_legend(title = NULL))
 
 
+### --- Probabilidad de detección por más frecuente --- ###
+
+Deteccion <- FINAL %>%
+  count(Prob_Detección)
+
+ggplot(Deteccion, aes(x = Prob_Detección, y = n)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  geom_text(aes(label = n), vjust = -0.5) +  
+  labs(x = "Probabilidad de Detección",
+       y = "Frecuencia") +
+  theme_minimal()
+
+Detec_Sector <- FINAL %>%
+  count(SectorEco, Prob_Detección)
+
+ggplot(Detec_Sector, aes(x = factor(Prob_Detección), y = n, fill = SectorEco)) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+  labs(x = "Probabilidad de Detección",
+       y = "Frecuencia") +
+  theme_minimal() +
+  theme(legend.position = "bottom", 
+        legend.title = element_blank())
 
 ### --- Informes excluidos --- ###
 
