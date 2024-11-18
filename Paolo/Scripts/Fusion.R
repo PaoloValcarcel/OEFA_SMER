@@ -60,7 +60,7 @@ CFinal2 <- Consolidado2 %>% dplyr::select("ID", "Expediente", "Informes", "Hecho
                                      "Multa", "Multa_Final", "Sancion_total",  "Colapsar", "year")
 
 CFinal <- rbind(CFinal1, CFinal2)
-#rm(CFinal1, CFinal2, Consolidado, Consolidado2)
+rm(CFinal1, CFinal2, Consolidado, Consolidado2)
 
 # Seleccionando las variables a usar
 
@@ -84,12 +84,12 @@ colnames(RFinal)[colnames(RFinal) == "¿Tiene resolución de apelación?...88"] 
 RFinal$Index <- as.character(RFinal$Index)
 
 # Fusionando ambas bases
-FINAL <-left_join(x = CFinal2, y = RFinal, by="Index")
+FINAL <-left_join(x = CFinal, y = RFinal, by="Index")
 FINAL <- FINAL %>%
   mutate(Merge = if_else(!is.na(Departamento), 1, 0)) 
 
 # Eliminando los objetos que no necesitamos
-rm(CFinal, RFinal, Consolidado, RUIAS)
+rm(CFinal, RFinal, RUIAS)
 
 # Arreglando las etiquetas de los sectores
 
@@ -113,11 +113,18 @@ table(FINAL$Merge)
 FINAL <- FINAL %>%
   filter(Merge == 1)
 
-# Otros ajustes
+#Admins <- FINAL %>% dplyr::select("Administrado", "RUC")
+#Administrados <- Admins %>%
+#  distinct(Administrado, RUC)
+#write_xlsx(Administrados, path = "D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/Administrados.xlsx")
+#rm(Admins, Administrados)
 
-#FINAL <- FINAL %>%
-#  select(-Administrado.x) %>%  
-#  rename(Administrado = Administrado.y)  
+# Index 7020
+
+
+
+
+### ----- Otros ajustes ----- ###
 
 ### Obteniendo el total de hechos imputados, extremos y sub extremos ###
 
@@ -145,7 +152,7 @@ rm(Extremos, Revision, Revision2, Revision3)
 # 552 + 64 = 616 Hechos imputados
 
 ###################################
-###### Fechas de informes ########
+###### Fechas de informes #########
 ###################################
 
 # Bucle para descargar y leer los archivos por año
