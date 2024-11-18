@@ -2,7 +2,7 @@
 require(pacman)
 p_load(foreign, tidyverse, rio, here, dplyr, viridis, readxl, stringr, RColorBrewer, ggcorrplot,  
         flextable, officer, classInt, foreign, stargazer, sf, mapview, leaflet, writexl, lmtest,
-       tseries, car, haven, officer, xlsx, openxlsx, httr, scales)
+       tseries, car, haven, officer, xlsx, openxlsx, httr)
 
 rm(list = ls())
 
@@ -10,7 +10,7 @@ rm(list = ls())
 ###### Informes de sanción ########
 ###################################
 
-# Carga de información del Consolidado
+# Carga de información del Consolidado 1
 url1 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/dfunido.xlsx"
 temp_file <- tempfile(fileext = ".xlsx")
 GET(url1, write_disk(temp_file, overwrite = TRUE))
@@ -18,29 +18,49 @@ Consolidado <- read_excel(temp_file, sheet = "Sheet 1")
 rm(temp_file, url1)
 #Consolidado <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/dfunido.xlsx", sheet = "Sheet 1")
 
-# Carga de información de RUIAS
-url2 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/RUIAS-CSEP.xlsx"
+# Carga de información del Consolidado 2
+url2 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/dfunido2.xlsx"
 temp_file <- tempfile(fileext = ".xlsx")
 GET(url2, write_disk(temp_file, overwrite = TRUE))
-RUIAS <- read_excel(temp_file, sheet = "RUIAS")  
+Consolidado2 <- read_excel(temp_file, sheet = "Sheet 1")  
 rm(temp_file, url2)
+
+# Carga de información de RUIAS
+url3 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/RUIAS-CSEP.xlsx"
+temp_file <- tempfile(fileext = ".xlsx")
+GET(url3, write_disk(temp_file, overwrite = TRUE))
+RUIAS <- read_excel(temp_file, sheet = "RUIAS")  
+rm(temp_file, url3)
 #RUIAS <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/RUIAS-CSEP.xlsx", sheet = "RUIAS")
 
 # Quitando las observaciones que no usaremos del consolidado
 
-CFinal <- Consolidado %>%
+CFinal1 <- Consolidado %>%
   filter(!Propuesta_Multa %in% c("si"),!Observaciones%in% c("Se debe eliminar por criterio del informe"))
 
-colnames(CFinal)[colnames(CFinal) == "ID2"] <- "Index"
-CFinal$Index <- as.character(CFinal$Index)
+colnames(CFinal1)[colnames(CFinal1) == "ID2"] <- "Index"
+CFinal1$Index <- as.character(CFinal1$Index)
+
+colnames(Consolidado2)[colnames(Consolidado2) == "ID RUIAS"] <- "Index"
+colnames(Consolidado2)[colnames(Consolidado2) == "Sub extremo"] <- "Sub_extremo"
+colnames(Consolidado2)[colnames(Consolidado2) == "Expedientes"] <- "Expediente"
+Consolidado2$Index <- as.character(Consolidado2$Index)
 
 
-CFinal <- CFinal %>% dplyr::select("ID", "Expediente", "Informes", "Hecho_imputado", 
+CFinal1 <- CFinal1 %>% dplyr::select("ID", "Expediente", "Informes", "Hecho_imputado", 
                                   "Num_Imputacion","Sub_extremo", "Monto", "Index",
                                   "COS_anual", "T_meses",  "Costo_evitado", "Unidad_monetaria",
                                   "Tipo_de_cambio", "Beneficio_ilícito", "Prob_Detección",
                                   "Multa", "Multa_Final", "Sancion_total",  "Colapsar", "year")
 
+CFinal2 <- Consolidado2 %>% dplyr::select("ID", "Expediente", "Informes", "Hecho_imputado", 
+                                     "Num_Imputacion","Sub_extremo", "Monto", "Index",
+                                     "COS_anual", "T_meses",  "Costo_evitado", "Unidad_monetaria",
+                                     "Tipo_de_cambio", "Beneficio_ilícito", "Prob_Detección",
+                                     "Multa", "Multa_Final", "Sancion_total",  "Colapsar", "year")
+
+CFinal <- rbind(CFinal1, CFinal2)
+#rm(CFinal1, CFinal2, Consolidado, Consolidado2)
 
 # Seleccionando las variables a usar
 
@@ -64,7 +84,7 @@ colnames(RFinal)[colnames(RFinal) == "¿Tiene resolución de apelación?...88"] 
 RFinal$Index <- as.character(RFinal$Index)
 
 # Fusionando ambas bases
-FINAL <-left_join(x = CFinal, y = RFinal, by="Index")
+FINAL <-left_join(x = CFinal2, y = RFinal, by="Index")
 FINAL <- FINAL %>%
   mutate(Merge = if_else(!is.na(Departamento), 1, 0)) 
 
