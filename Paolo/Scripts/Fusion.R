@@ -121,8 +121,25 @@ FINAL <- FINAL %>%
 
 # Index 7020
 
+# Carga de información de tamaño de empresas
+url4 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/Tamaño_Empresas.xls"
+temp_file <- tempfile(fileext = ".xls")
+GET(url4, write_disk(temp_file, overwrite = TRUE))
+Tamaño <- read_excel(temp_file, sheet = "Sheet1")  
+rm(temp_file, url4)
 
+Tamaño$RUC <- as.character(Tamaño$RUC)
 
+# Fusionando con Tamaño
+FINAL <-left_join(x = FINAL, y = Tamaño, by="RUC")
+rm(Tamaño)
+
+FINAL$ciiu <- ifelse(FINAL$Index == "7020", "1320", FINAL$ciiu)
+FINAL$descciiu <- ifelse(FINAL$Index == "7020", "EXT. DE MIN. METALIFEROS NO FERROSOS.", FINAL$descciiu)
+FINAL$trabajadores <- ifelse(FINAL$Index == "7020", 288, FINAL$trabajadores)
+FINAL$Contribuyente <- ifelse(FINAL$Index == "7020", "SOCIEDAD ANONIMA CERRADA", FINAL$Contribuyente)
+FINAL$Regimen <- ifelse(FINAL$Index == "7020", "REG", FINAL$Regimen)
+FINAL$Tamaño_emp <- ifelse(FINAL$Index == "7020", "Gran empresa", FINAL$Tamaño_emp)
 
 ### ----- Otros ajustes ----- ###
 
@@ -134,15 +151,18 @@ table(FINAL$Colapsar)
 # Seleccionando variables a emplear
 Extremos <- FINAL %>% dplyr::select(Informes, Num_Imputacion, Colapsar)
 
-#  245 registros con extremos y sub extremos
+#  245 registros con extremos y sub extremos (Anterior)
+#  350 registros con extremos y sub extremos (Actual)
 Revision <- Extremos %>% 
             filter(Colapsar!="NA")
 
-#  64 hechos imputados con extremos y sub extremos
+#  64 hechos imputados con extremos y sub extremos (Anterior)
+#  94 hechos imputados con extremos y sub extremos (Actual)
 Revision2 <- Revision %>%
   distinct(Informes, Num_Imputacion)
 
-#  37 informes con hechos imputados con extremos y sub extremos
+#  37 informes con hechos imputados con extremos y sub extremos (Anterior)
+#  57 informes con hechos imputados con extremos y sub extremos (Actual)
 Revision3 <- Revision2 %>%
   distinct(Informes)
 
