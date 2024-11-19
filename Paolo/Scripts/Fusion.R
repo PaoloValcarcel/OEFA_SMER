@@ -276,6 +276,12 @@ FACTORES <- Fusion %>%
   filter(!(Informes == "00575-2023-OEFA/DFAI-SSAG" & Imputacion == 1))
 rm(Fusion)
 
+# Importando Los nuevos Factores de la segunda tanda de informes
+
+
+
+
+
 FACTORES <- FACTORES %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agravantes", "Categoria_FA", "% FA")
 table(FACTORES$Factores_agravantes, useNA = "ifany")
 
