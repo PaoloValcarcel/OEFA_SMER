@@ -186,10 +186,31 @@ for (year in years) {
 }
 rm(year, years)
 
-Fechas <- rbind(F2022, F2023, F2024)
+Fechas1 <- rbind(F2022, F2023, F2024)
+rm(F2022, F2023, F2024)
+
+years <- c(2022, 2023, 2024)
+for (year in years) {
+  url <- paste0("https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Fechas/Fecha_", year, "b.xlsx")
+  temp_file <- tempfile(fileext = ".xlsx")
+  GET(url, write_disk(temp_file, overwrite = TRUE))
+  assign(paste0("F", year), read_excel(temp_file, sheet = as.character(year)))
+  rm(temp_file, url)
+}
+rm(year, years)
+
+Fechas1 <- rbind(F2022, F2023, F2024)
+rm(F2022, F2023, F2024)
+
+
+
+
+
+
+
 
 Fechas <- Fechas %>% dplyr::select(Informes, Fecha_Informe, Obs_Fecha)
-rm(F2022, F2023, F2024)
+
 
 FINAL <-left_join(x = FINAL, y = Fechas, by="Informes")
 rm(Fechas)
@@ -272,23 +293,47 @@ table(Fusion$Propuesta_Multa, useNA = "ifany")
 Fusion <- Fusion %>%
   filter(is.na(Propuesta_Multa))
 
-FACTORES <- Fusion %>%
+Aglomerado1 <- Fusion %>%
   filter(!(Informes == "00575-2023-OEFA/DFAI-SSAG" & Imputacion == 1))
 rm(Fusion)
 
+Aglomerado1 <- Aglomerado1 %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agravantes", "Categoria_FA", "% FA")
+table(Aglomerado1$Factores_agravantes, useNA = "ifany")
+
 # Importando Los nuevos Factores de la segunda tanda de informes
+years <- c(2022, 2023, 2024)
+Factores <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Factores/Info_"
+for (year in years) {
+  url <- paste0(Factores, year, ".xlsx")
+  temp_file <- tempfile(fileext = ".xlsx")
+  GET(url, write_disk(temp_file, overwrite = TRUE))
+  assign(paste0("G", year), read_excel(temp_file, sheet = "Graduación"))
+  rm(temp_file, url)
+}
+rm(Factores, year, years)
 
+G2022F <- G2022 %>%
+  filter(!Observaciones %in% c("Multa Coercitiva", "Propuesta de calculo de multa"))
 
+G2023F <- G2023 %>%
+  filter(!Observaciones %in% c("Multa coercitiva", "Propuesta Calculo de Multa"))
 
+G2024F <- G2024 %>%
+  filter(!Observaciones %in% c("Multas Coercitivas", "Propuesta Calculo de Multa", "Recurso de Reconsideracion"))
 
+Aglomerado2 <- rbind(G2022F, G2023F, G2024F)
+rm(G2022,G2022F, G2023, G2023F, G2024,G2024F)
+colnames(Aglomerado2)[colnames(Aglomerado2) == "Correlativo"] <- "ID"
+Aglomerado2 <- Aglomerado2 %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agravantes", "Categoria_FA", "% FA")
 
-FACTORES <- FACTORES %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agravantes", "Categoria_FA", "% FA")
-table(FACTORES$Factores_agravantes, useNA = "ifany")
+# Combinando los factores
+FACTORES <- rbind(Aglomerado1, Aglomerado2)
+rm(Aglomerado1, Aglomerado2)
 
+# Gráfico de barras de factores
 Filtro <- FACTORES[FACTORES$Factores_agravantes %in% c("F1", "F2", "F3", "F5", "F6"), ]
 table(Filtro$Factores_agravantes, useNA = "ifany")
 
-# Gráfico de barras de factores
 ggplot(Filtro, aes(x = Factores_agravantes)) +
   geom_bar(fill = "skyblue", color = "black") +
   geom_text(stat = 'count', aes(label = ..count..), vjust = -0.5) + 
