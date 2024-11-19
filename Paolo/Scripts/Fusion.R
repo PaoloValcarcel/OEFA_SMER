@@ -189,6 +189,8 @@ rm(year, years)
 Fechas1 <- rbind(F2022, F2023, F2024)
 rm(F2022, F2023, F2024)
 
+Fechas1 <- Fechas1 %>% dplyr::select(Informes, Fecha_Informe)
+
 years <- c(2022, 2023, 2024)
 for (year in years) {
   url <- paste0("https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Fechas/Fecha_", year, "b.xlsx")
@@ -199,21 +201,20 @@ for (year in years) {
 }
 rm(year, years)
 
-Fechas1 <- rbind(F2022, F2023, F2024)
+Fechas2 <- rbind(F2022, F2023, F2024)
+colnames(Fechas2)[colnames(Fechas2) == "Fecha"] <- "Fecha_Informe"
+Fechas2 <- Fechas2 %>% dplyr::select(Informes, Fecha_Informe)
 rm(F2022, F2023, F2024)
 
-
-
-
-
-
-
-
-Fechas <- Fechas %>% dplyr::select(Informes, Fecha_Informe, Obs_Fecha)
-
+Fechas <- rbind(Fechas1, Fechas2)
+rm(Fechas1, Fechas2)
 
 FINAL <-left_join(x = FINAL, y = Fechas, by="Informes")
 rm(Fechas)
+
+table(is.na(FINAL$Fecha_Informe))
+
+View(FINAL[is.na(FINAL$Fecha_Informe), ])
 
 ###################################
 ##### Factores de graduación ######
