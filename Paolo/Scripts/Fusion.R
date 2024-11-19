@@ -67,9 +67,8 @@ rm(CFinal1, CFinal2, Consolidado, Consolidado2)
 RFinal <- RUIAS %>% dplyr::select("ID", "Administrado", "RUC", "Sector económico", "Departamento",
                                   "Provincia", "Distrito", "Infracción cometida sancionada (Clasificación de 11)",
                                   "Infracción cometida sancionada (Clasificación de 19)", 
-                                  "¿Tiene resolución de reconsideración?...81", "¿Tiene resolución de apelación?...88",
                                   "Inicio de supervisión", "Fin de supervisión", "Fecha de notificación...23",
-                                  "¿Tiene resolución de apelación?...88", "Documento de inicio", "Fecha de emisión",
+                                  "Documento de inicio", "Fecha de emisión",
                                   "N° de Resolución de Responsabilidad Administrativa", "Fecha de la Resolución...38", 
                                   "Fecha de notificación...39")
 
@@ -78,8 +77,15 @@ colnames(RFinal)[colnames(RFinal) == "Sector económico"] <- "SectorEco"
 colnames(RFinal)[colnames(RFinal) == "Inicio de supervisión"] <- "InicioSup"
 colnames(RFinal)[colnames(RFinal) == "Fin de supervisión"] <- "FinSup"
 colnames(RFinal)[colnames(RFinal) == "Fecha de notificación...23"] <- "InicioPAS"
-colnames(RFinal)[colnames(RFinal) == "Infracción cometida sancionada (Clasificación de 11)"] <- "Incumplimiento1"
-colnames(RFinal)[colnames(RFinal) == "¿Tiene resolución de apelación?...88"] <- "Apelacion"
+colnames(RFinal)[colnames(RFinal) == "Infracción cometida sancionada (Clasificación de 11)"] <- "Incumplimiento_11"
+colnames(RFinal)[colnames(RFinal) == "Infracción cometida sancionada (Clasificación de 19)"] <- "Incumplimiento_19"
+colnames(RFinal)[colnames(RFinal) == "Fecha de notificación...23"] <- "Fecha_Notificacion_23"
+colnames(RFinal)[colnames(RFinal) == "Fecha de notificación...39"] <- "Fecha_Notificacion_39"
+colnames(RFinal)[colnames(RFinal) == "Fecha de la Resolución...38"] <- "Fecha_Resolucion"
+colnames(RFinal)[colnames(RFinal) == "N° de Resolución de Responsabilidad Administrativa"] <- "Nro_Resolucion"
+colnames(RFinal)[colnames(RFinal) == "Documento de inicio"] <- "Documento_Inicio"
+colnames(RFinal)[colnames(RFinal) == "Fecha de emisión"] <- "Fecha_Emision"
+
 
 RFinal$Index <- as.character(RFinal$Index)
 
@@ -212,9 +218,8 @@ rm(Fechas1, Fechas2)
 FINAL <-left_join(x = FINAL, y = Fechas, by="Informes")
 rm(Fechas)
 
-table(is.na(FINAL$Fecha_Informe))
-
-View(FINAL[is.na(FINAL$Fecha_Informe), ])
+#table(is.na(FINAL$Fecha_Informe))
+#View(FINAL[is.na(FINAL$Fecha_Informe), ])
 
 ###################################
 ##### Factores de graduación ######
@@ -349,15 +354,19 @@ rm(Filtro)
 ###### Exportando las bases #######
 ###################################
 
+
+FINAL1 <- FINAL %>% dplyr::select(-c("Hecho_imputado"))
+
+
 wb <- createWorkbook()
 
 # Añadiendo la primera hoja con el primer dataframe
 addWorksheet(wb, "Informes")
-writeData(wb, "Informes", FINAL)
+writeData(wb, "Informes", FINAL1, colNames = TRUE)
 
 # Añadiendo la segunda hoja con el segundo dataframe
 addWorksheet(wb, "Factores")
-writeData(wb, "Factores", FACTORES)
+writeData(wb, "Factores", FACTORES, colNames = TRUE)
 
 # Guardardando el archivo Excel
 saveWorkbook(wb, "D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/INFORMES_GRADUACION.xlsx", overwrite = TRUE)
@@ -450,9 +459,7 @@ ggplot(Glong, aes(x = factor(year), y = Conteo, fill = Origen)) +
 rm(Grafico, Glong, Rev1, Rev2, Revision1, Revision2, Revs, Extremos, cRevs, cUnique)
 
 
-
 ### --- Infracciones analizadas por sectores para el período de 2022 a 2024 --- ###
-
 
 Extremos <- FINAL %>% dplyr::select(Informes, Num_Imputacion, Colapsar, SectorEco)
 
