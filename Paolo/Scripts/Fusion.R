@@ -59,6 +59,9 @@ CFinal2 <- Consolidado2 %>% dplyr::select("ID", "Expediente", "Informes", "Hecho
                                      "Tipo_de_cambio", "Beneficio_ilícito", "Prob_Detección",
                                      "Multa", "Multa_Final", "Sancion_total",  "Colapsar", "year")
 
+CFinal1$Datos <- "Primera fase"
+CFinal2$Datos <- "Segunda fase"
+
 CFinal <- rbind(CFinal1, CFinal2)
 rm(CFinal1, CFinal2, Consolidado, Consolidado2)
 
@@ -150,7 +153,6 @@ FINAL$Tamaño_emp <- ifelse(FINAL$Index == "7020", "Gran empresa", FINAL$Tamaño
 ### ----- Otros ajustes ----- ###
 
 ### Obteniendo el total de hechos imputados, extremos y sub extremos ###
-
 FINAL$Colapsar <- ifelse(FINAL$Colapsar == "Máximo", "Maximo", FINAL$Colapsar)
 table(FINAL$Colapsar)
 
@@ -332,6 +334,9 @@ rm(G2022,G2022F, G2023, G2023F, G2024,G2024F)
 colnames(Aglomerado2)[colnames(Aglomerado2) == "Correlativo"] <- "ID"
 Aglomerado2 <- Aglomerado2 %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agravantes", "Categoria_FA", "% FA")
 
+Aglomerado1$Datos <- "Primera fase"
+Aglomerado2$Datos <- "Segunda fase"
+
 # Combinando los factores
 FACTORES <- rbind(Aglomerado1, Aglomerado2)
 rm(Aglomerado1, Aglomerado2)
@@ -354,15 +359,13 @@ rm(Filtro)
 ###### Exportando las bases #######
 ###################################
 
-
-FINAL1 <- FINAL %>% dplyr::select(-c("Hecho_imputado"))
-
+FINAL <- FINAL %>% dplyr::select(-c("Hecho_imputado"))
 
 wb <- createWorkbook()
 
 # Añadiendo la primera hoja con el primer dataframe
 addWorksheet(wb, "Informes")
-writeData(wb, "Informes", FINAL1, colNames = TRUE)
+writeData(wb, "Informes", FINAL, colNames = TRUE)
 
 # Añadiendo la segunda hoja con el segundo dataframe
 addWorksheet(wb, "Factores")
