@@ -121,6 +121,14 @@ table(FINAL$Merge)
 FINAL <- FINAL %>%
   filter(Merge == 1)
 
+
+
+
+
+
+
+
+
 #Admins <- FINAL %>% dplyr::select("Administrado", "RUC")
 #Administrados <- Admins %>%
 #  distinct(Administrado, RUC)
@@ -339,6 +347,9 @@ Aglomerado2$Datos <- "Segunda fase"
 # Combinando los factores
 FACTORES <- rbind(Aglomerado1, Aglomerado2)
 rm(Aglomerado1, Aglomerado2)
+
+FACTORES <- FACTORES %>%
+  mutate(`% FA` = ifelse(is.na(Categoria_FA), 0, `% FA`))
 
 # Gráfico de barras de factores
 Filtro <- FACTORES[FACTORES$Factores_agravantes %in% c("F1", "F2", "F3", "F5", "F6"), ]
