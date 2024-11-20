@@ -59,6 +59,16 @@ CFinal2 <- Consolidado2 %>% dplyr::select("ID", "Expediente", "Informes", "Hecho
                                      "Tipo_de_cambio", "Beneficio_ilícito", "Prob_Detección",
                                      "Multa", "Multa_Final", "Sancion_total",  "Colapsar", "year")
 
+
+##################################################################
+Prueba <- CFinal1 %>% dplyr::select("Informes")
+Prueba <- distinct(Prueba)
+
+prueba2 <- CFinal2 %>% dplyr::select("Informes")
+prueba2 <-  distinct(prueba2)
+##################################################################
+
+
 CFinal1$Datos <- "Primera fase"
 CFinal2$Datos <- "Segunda fase"
 
@@ -117,19 +127,7 @@ FINAL$SectorEco <- sapply(FINAL$SectorEco, function(x) {
 FINAL <- FINAL %>% filter(Multa_Final != 0)
 
 # Quedándome solo con los que fusionaron perfecto con el RUIAS
-
 table(FINAL$Merge)
-##################################################################
-Prueba <- FINAL %>%
-  filter(Merge == 0)
-Prueba <- Prueba %>% dplyr::select("Informes")
-Prueba <- distinct(Prueba)
-
-prueba2 <- FINAL %>%
-  filter(Merge == 1)
-prueba2 <- prueba2 %>% dplyr::select("Informes")
-prueba2 <-  distinct(prueba2)
-
 FINAL <- FINAL %>%
   filter(Merge == 1)
 
@@ -985,22 +983,35 @@ Completo <- Unicos %>%
 
 rm(Unicos, Excluidos, FINAL, Fusion, G2022, G2023, G2024, Consolidado)
 
+
+#Exportando las categorías de la nueva fase
+url1 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/Informes_2daFase.xlsx"
+temp_file <- tempfile(fileext = ".xlsx")
+GET(url1, write_disk(temp_file, overwrite = TRUE))
+Fase_2 <- read_excel(temp_file, sheet = "2da_Fase")  
+rm(temp_file, url1)
+
+Fase_2 <- Fase_2 %>%
+  filter(Observaciones != "Calculo de Multa")
+colnames(Fase_2)[colnames(Fase_2) == "Observaciones"] <- "Hecho_imputado"
+
 # Seleccionado variables
 Completo <- Completo %>% dplyr::select("Año","Hecho_imputado")
 
-Completo$Unos <- 1
+# Juntando ambas fases
+Fases <- rbind(Completo, Fase_2)
+Fases$Hecho_imputado <- gsub("Propuesta de cálculo de multa", "Propuesta cálculo de multa", Fases$Hecho_imputado)
+Fases$Unos <- 1
 
-names(Completo)
-
-Colapsado <- Completo %>%
+Fases2 <- Fases %>%
   group_by(Año, Hecho_imputado) %>%
   summarise(Total = sum(Unos, na.rm = TRUE)) %>%
   ungroup()
 
-rm(Completo)
+rm(Completo, Fase_2)
 
 # Gráfico de excluidos
-ggplot(Colapsado, aes(x = Año, y = Total, fill = Hecho_imputado)) +
+ggplot(Fases2, aes(x = Año, y = Total, fill = Hecho_imputado)) +
   geom_bar(stat = "identity", position = "dodge") +
   geom_text(aes(label = Total), vjust = -0.5, position = position_dodge(0.9), size = 3.5) +
   scale_fill_viridis_d() +  
@@ -1008,9 +1019,14 @@ ggplot(Colapsado, aes(x = Año, y = Total, fill = Hecho_imputado)) +
        y = "Total") +
   theme_minimal() +
   theme(legend.position = "bottom", 
-        legend.title = element_blank())
+        legend.title = element_blank()) +
+  guides(fill = guide_legend(nrow = 2))
 
 # Tabla resumen
+Fases3 <- Fases %>%
+  group_by(Hecho_imputado) %>%
+  summarise(Total = sum(Unos, na.rm = TRUE)) %>%
+  ungroup()
 
-knitr::kable(head(Colapsado))
+knitr::kable((Fases3))
 
