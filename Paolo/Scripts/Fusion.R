@@ -119,6 +119,17 @@ FINAL <- FINAL %>% filter(Multa_Final != 0)
 # Quedándome solo con los que fusionaron perfecto con el RUIAS
 
 table(FINAL$Merge)
+##################################################################
+Prueba <- FINAL %>%
+  filter(Merge == 0)
+Prueba <- Prueba %>% dplyr::select("Informes")
+Prueba <- distinct(Prueba)
+
+prueba2 <- FINAL %>%
+  filter(Merge == 1)
+prueba2 <- prueba2 %>% dplyr::select("Informes")
+prueba2 <-  distinct(prueba2)
+
 FINAL <- FINAL %>%
   filter(Merge == 1)
 
