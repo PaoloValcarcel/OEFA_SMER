@@ -59,16 +59,6 @@ CFinal2 <- Consolidado2 %>% dplyr::select("ID", "Expediente", "Informes", "Hecho
                                      "Tipo_de_cambio", "Beneficio_ilícito", "Prob_Detección",
                                      "Multa", "Multa_Final", "Sancion_total",  "Colapsar", "year")
 
-
-##################################################################
-Prueba <- CFinal1 %>% dplyr::select("Informes")
-Prueba <- distinct(Prueba)
-
-prueba2 <- CFinal2 %>% dplyr::select("Informes")
-prueba2 <-  distinct(prueba2)
-##################################################################
-
-
 CFinal1$Datos <- "Primera fase"
 CFinal2$Datos <- "Segunda fase"
 
