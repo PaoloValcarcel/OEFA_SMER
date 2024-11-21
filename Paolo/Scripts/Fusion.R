@@ -16,7 +16,6 @@ temp_file <- tempfile(fileext = ".xlsx")
 GET(url1, write_disk(temp_file, overwrite = TRUE))
 Consolidado <- read_excel(temp_file, sheet = "Sheet 1")  
 rm(temp_file, url1)
-#Consolidado <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/dfunido.xlsx", sheet = "Sheet 1")
 
 # Carga de información del Consolidado 2
 url2 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/dfunido2.xlsx"
@@ -31,7 +30,6 @@ temp_file <- tempfile(fileext = ".xlsx")
 GET(url3, write_disk(temp_file, overwrite = TRUE))
 RUIAS <- read_excel(temp_file, sheet = "RUIAS")  
 rm(temp_file, url3)
-#RUIAS <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/RUIAS-CSEP.xlsx", sheet = "RUIAS")
 
 # Quitando las observaciones que no usaremos del consolidado
 
@@ -119,76 +117,44 @@ FINAL <- FINAL %>% filter(Multa_Final != 0)
 # Quedándome solo con los que fusionaron perfecto con el RUIAS
 table(FINAL$Merge)
 
-#############################################################################
-FINAL <- FINAL %>%
-  filter(Merge == 1)
-
-#############################################
+# Fusionando el Tipo de Empresa (restante: Index 7020)
 url4 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/Tipo_Empresas.xlsx"
 temp_file <- tempfile(fileext = ".xlsx")
 GET(url4, write_disk(temp_file, overwrite = TRUE))
-Tamaño <- read_excel(temp_file, sheet = "Resumen")  
+Tamaño <- read_excel(temp_file, sheet = "Final")  
 rm(temp_file, url4)
-
-
 FINAL <-left_join(x = FINAL, y = Tamaño, by="Administrado")
-table(FIN$tipo_actividad)
-View(FIN[is.na(FIN$tipo_actividad), ])
-#############################################
-
-#Admins <- FINAL %>% dplyr::select("Administrado", "RUC")
-#Administrados <- Admins %>%
-#  distinct(Administrado, RUC)
-#write_xlsx(Administrados, path = "D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/Administrados.xlsx")
-#rm(Admins, Administrados)
-
-# Index 7020
-
-# Carga de información de tamaño de empresas
-url4 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/Tamaño_Empresas.xls"
-temp_file <- tempfile(fileext = ".xls")
-GET(url4, write_disk(temp_file, overwrite = TRUE))
-Tamaño <- read_excel(temp_file, sheet = "Sheet1")  
-rm(temp_file, url4)
-
-Tamaño$RUC <- as.character(Tamaño$RUC)
-
-# Fusionando con Tamaño
-FINAL <-left_join(x = FINAL, y = Tamaño, by="RUC")
 rm(Tamaño)
-
-FINAL$ciiu <- ifelse(FINAL$Index == "7020", "1320", FINAL$ciiu)
-FINAL$descciiu <- ifelse(FINAL$Index == "7020", "EXT. DE MIN. METALIFEROS NO FERROSOS.", FINAL$descciiu)
-FINAL$trabajadores <- ifelse(FINAL$Index == "7020", 288, FINAL$trabajadores)
-FINAL$Contribuyente <- ifelse(FINAL$Index == "7020", "SOCIEDAD ANONIMA CERRADA", FINAL$Contribuyente)
-FINAL$Regimen <- ifelse(FINAL$Index == "7020", "REG", FINAL$Regimen)
-FINAL$Tamaño_emp <- ifelse(FINAL$Index == "7020", "Gran empresa", FINAL$Tamaño_emp)
+#View(FINAL[is.na(FINAL$tipo_actividad), ])
+FINAL$tipo_actividad <- ifelse(FINAL$Index == "7020", "actividad empresarial", FINAL$tipo_actividad)
+FINAL$tipo_persona <- ifelse(FINAL$Index == "7020", "persona jurídica", FINAL$tipo_persona)
+table(FINAL$tipo_actividad)
+FINAL$Colapsar <- ifelse(FINAL$Colapsar == "Máximo", "Maximo", FINAL$Colapsar)
+table(FINAL$Colapsar)
 
 ### ----- Otros ajustes ----- ###
 
 ### Obteniendo el total de hechos imputados, extremos y sub extremos ###
-FINAL$Colapsar <- ifelse(FINAL$Colapsar == "Máximo", "Maximo", FINAL$Colapsar)
-table(FINAL$Colapsar)
 
 # Seleccionando variables a emplear
-Extremos <- FINAL %>% dplyr::select(Informes, Num_Imputacion, Colapsar)
+#Extremos <- FINAL %>% dplyr::select(Informes, Num_Imputacion, Colapsar)
 
 #  245 registros con extremos y sub extremos (Anterior)
 #  350 registros con extremos y sub extremos (Actual)
-Revision <- Extremos %>% 
-            filter(Colapsar!="NA")
+#Revision <- Extremos %>% 
+#            filter(Colapsar!="NA")
 
 #  64 hechos imputados con extremos y sub extremos (Anterior)
 #  94 hechos imputados con extremos y sub extremos (Actual)
-Revision2 <- Revision %>%
-  distinct(Informes, Num_Imputacion)
+#Revision2 <- Revision %>%
+#  distinct(Informes, Num_Imputacion)
 
 #  37 informes con hechos imputados con extremos y sub extremos (Anterior)
 #  57 informes con hechos imputados con extremos y sub extremos (Actual)
-Revision3 <- Revision2 %>%
-  distinct(Informes)
+#Revision3 <- Revision2 %>%
+#  distinct(Informes)
 
-rm(Extremos, Revision, Revision2, Revision3)
+#rm(Extremos, Revision, Revision2, Revision3)
 
 # 797 - 245 = 552 Hechos imputados
 # 552 + 64 = 616 Hechos imputados
@@ -253,10 +219,6 @@ for (year in years) {
 }
 rm(Factores, year, years)
 
-#G2022 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Factores/Copia de Informes_2022.xlsx", sheet = "Graduacion")
-#G2023 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Factores/Copia de Informes_2023.xlsx", sheet = "Graduacion")
-#G2024 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Factores/Copia de Informes_2024.xlsx", sheet = "Graduacion")
-
 # Quitando de las bases las categorías a no emplear
 G2022F<- G2022 %>%
   filter(!Categoria_FA %in% c("Reconsideración", "Multa coercitiva", "Sin factor"))
@@ -288,7 +250,6 @@ Aglomerado <- rbind(G2022F, G2023F, G2024F)
 rm(G2022,G2022F, G2023, G2023F, G2024,G2024F)
 
 # Cargando la base de DFUNIDO
-#Consolidado <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/dfunido.xlsx", sheet = "Sheet 1")
 url1 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/dfunido.xlsx"
 temp_file <- tempfile(fileext = ".xlsx")
 GET(url1, write_disk(temp_file, overwrite = TRUE))
@@ -306,9 +267,6 @@ Unicos <- Consolidado[!duplicated(Consolidado$Informes), ]
 # Fusionando bases
 Fusion <-left_join(x = Aglomerado, y = Unicos, by="Informes")
 rm(Consolidado, Aglomerado, Unicos)
-
-# Exportando
-#write_xlsx(Fusion, path = "D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Factores/Factores.xlsx")
 
 table(Fusion$Propuesta_Multa, useNA = "ifany")
 
@@ -396,42 +354,13 @@ saveWorkbook(wb, "D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/IN
 #### Estadísticas Descriptivas ####
 ###################################
 
-### --- Total de informes de cálculo de multa y hechos imputados --- ###
+NOMERGE <- FINAL %>%
+  filter(Merge == 0)
 
-Unique <- FINAL %>%
-  distinct(year, Informes)
+FINAL <- FINAL %>%
+  filter(Merge == 1)
 
-# Conteo de observaciones por año en el objeto FINAL
-cFINAL <- FINAL %>%
-  group_by(year) %>%
-  summarise(Hechos_Imputados = n())
-
-# Conteo de informes por año en el objeto Unique
-cUnique <- Unique %>%
-  group_by(year) %>%
-  summarise(Informes = n_distinct(Informes))
-
-# Fusionamos ambos conteos en un solo data frame por año
-Grafico <- full_join(cFINAL, cUnique, by = "year")
-
-# Reorganizamos los datos en un formato long
-Glong <- Grafico %>%
-  pivot_longer(cols = c(Informes, Hechos_Imputados),
-               names_to = "Origen",
-               values_to = "Conteo")
-
-ggplot(Glong, aes(x = factor(year), y = Conteo, fill = Origen)) +
-  geom_bar(stat = "identity", position = position_dodge2(reverse = TRUE)) +  
-  geom_text(aes(label = Conteo), position = position_dodge2(width = 0.9, reverse = TRUE), vjust = -0.5) +
-  labs(x = "Año", y = "Información cruzada con el RUIIAS", fill = NULL) +
-  scale_fill_manual(values = c("Hechos_Imputados" = "indianred2", "Informes" = "#7AC5CD"),
-                    labels = c("Hechos Imputados", "Informes")) +
-  theme_minimal() +
-  theme(legend.position = "bottom")
-
-rm(cFINAL, Grafico, Glong, Unique)
-
-### ------- Solo hechos imputados fusionado con RUIIAS ------- ###
+### --- Total de informes de cálculo de multa y hechos imputados (con RUIAS) --- ###
 
 Extremos <- FINAL %>% dplyr::select(Informes, Num_Imputacion, Colapsar, year)
 
@@ -457,6 +386,14 @@ cRevs <- Revs %>%
   group_by(year) %>%
   summarise(Hechos_Imputados = n())
 
+Unique <- FINAL %>%
+  distinct(year, Informes)
+
+# Conteo de informes por año en el objeto Unique
+cUnique <- Unique %>%
+  group_by(year) %>%
+  summarise(Informes = n_distinct(Informes))
+
 # Fusionamos ambos conteos en un solo data frame por año
 cUnique$year <- as.character(cUnique$year)
 Grafico <- full_join(cRevs, cUnique, by = "year")
@@ -476,8 +413,7 @@ ggplot(Glong, aes(x = factor(year), y = Conteo, fill = Origen)) +
   theme_minimal() +
   theme(legend.position = "bottom")
 
-rm(Grafico, Glong, Rev1, Rev2, Revision1, Revision2, Revs, Extremos, cRevs, cUnique)
-
+rm(Grafico, Glong, Rev1, Rev2, Revision1, Revision2, Revs, Extremos, cRevs, cUnique, Unique)
 
 ### --- Infracciones analizadas por sectores para el período de 2022 a 2024 --- ###
 
@@ -772,7 +708,6 @@ promedio_FinSup_InicioPAS <- mean(Fechas_Hechos$Meses_FinSup_InicioPAS, na.rm = 
 mediana_InicioPAS_FechaInforme <- median(Fechas_Hechos$Meses_InicioPAS_FechaInforme, na.rm = TRUE)
 promedio_InicioPAS_FechaInforme <- mean(Fechas_Hechos$Meses_InicioPAS_FechaInforme, na.rm = TRUE)
 
-
 # percentil 90
 
 # Calcular el percentil 90 para ambos periodos
@@ -905,23 +840,50 @@ ggplot(Max_sector, aes(x = SectorEco, y = Meses_max, fill = Transicion)) +
 
 ### --- Probabilidad de detección por más frecuente --- ###
 
+# General
 Deteccion <- FINAL %>%
-  count(Prob_Detección)
+  count(Prob_Detección) %>%
+  mutate(Prob_Detección = factor(Prob_Detección, levels = c(0.1, 0.5, 0.75, 1)))
 
 ggplot(Deteccion, aes(x = Prob_Detección, y = n)) +
   geom_bar(stat = "identity", fill = "skyblue", color = "black") +
-  geom_text(aes(label = n), vjust = -0.5) +  
+  geom_text(aes(label = n), vjust = -0.5) +
   labs(x = "Probabilidad de Detección",
        y = "Frecuencia") +
   theme_minimal()
 
+# Por año
+Detec_año <- FINAL %>%
+  count(year, Prob_Detección) %>%
+  mutate(Prob_Detección = factor(Prob_Detección, levels = c(0.1, 0.5, 0.75, 1)))
+
+ggplot(Detec_año, aes(x = Prob_Detección, y = n, fill = factor(year))) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+  geom_text(aes(label = n), position = position_dodge(0.9), vjust = -0.5) +
+  labs(x = "Probabilidad de Detección",
+       y = "Frecuencia",
+       fill = "Año") +
+  scale_fill_manual(values = c("2022" = "#a6cee3", 
+                               "2023" = "#1f78b4", 
+                               "2024" = "#08306b")) + 
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Por sector económico
 Detec_Sector <- FINAL %>%
   count(SectorEco, Prob_Detección)
+
+
+sector_colors <- c("Agricultura" = "white", "Electricidad" = "#a6cee3","Industria" = "#6baed6",  
+                   "Pesquería" = "#3182bd", "Consultoras ambientales" = "#1f78b4", 
+                   "Hidrocarburos" = "#4a6491", "Minería" = "#08519c", "Residuos sólidos" = "#08306b") 
 
 ggplot(Detec_Sector, aes(x = factor(Prob_Detección), y = n, fill = SectorEco)) +
   geom_bar(stat = "identity", position = "dodge", color = "black") +
   labs(x = "Probabilidad de Detección",
-       y = "Frecuencia") +
+       y = "Frecuencia",
+       fill = "Sector Económico") +
+  scale_fill_manual(values = sector_colors) + 
   theme_minimal() +
   theme(legend.position = "bottom", 
         legend.title = element_blank())
@@ -941,10 +903,6 @@ for (year in years) {
 }
 rm(Factores, year, years)
 
-#G2022 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Factores/Copia de Informes_2022.xlsx", sheet = "Componentes")
-#G2023 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Factores/Copia de Informes_2023.xlsx", sheet = "Componentes")
-#G2024 <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Factores/Copia de Informes_2024.xlsx", sheet = "Componentes")
-
 G2022 <- G2022 %>% dplyr::select("ID","Informes", "Hecho_imputado", "Num_Imputacion")
 G2023 <- G2023 %>% dplyr::select("ID","Informes", "Hecho_imputado", "Num_Imputacion")
 G2024 <- G2024 %>% dplyr::select("ID","Informes", "Hecho_imputado", "Num_Imputacion")
@@ -957,7 +915,6 @@ G2024$Año <- 2024
 FINAL <- rbind(G2022, G2023, G2024)
 
 # Trayendo el DFUNIDO
-#Consolidado <-read_excel("D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/dfunido.xlsx", sheet = "Sheet 1")
 url1 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/dfunido.xlsx"
 temp_file <- tempfile(fileext = ".xlsx")
 GET(url1, write_disk(temp_file, overwrite = TRUE))
