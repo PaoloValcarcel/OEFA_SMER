@@ -118,16 +118,23 @@ FINAL <- FINAL %>% filter(Multa_Final != 0)
 
 # Quedándome solo con los que fusionaron perfecto con el RUIAS
 table(FINAL$Merge)
+
+#############################################################################
 FINAL <- FINAL %>%
   filter(Merge == 1)
 
+#############################################
+url4 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/Tipo_Empresas.xlsx"
+temp_file <- tempfile(fileext = ".xlsx")
+GET(url4, write_disk(temp_file, overwrite = TRUE))
+Tamaño <- read_excel(temp_file, sheet = "Resumen")  
+rm(temp_file, url4)
 
 
-
-
-
-
-
+FINAL <-left_join(x = FINAL, y = Tamaño, by="Administrado")
+table(FIN$tipo_actividad)
+View(FIN[is.na(FIN$tipo_actividad), ])
+#############################################
 
 #Admins <- FINAL %>% dplyr::select("Administrado", "RUC")
 #Administrados <- Admins %>%
