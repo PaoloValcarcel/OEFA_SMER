@@ -299,7 +299,8 @@ G2023F <- G2023 %>%
   filter(!Observaciones %in% c("Multa coercitiva", "Propuesta Calculo de Multa"))
 
 G2024F <- G2024 %>%
-  filter(!Observaciones %in% c("Multas Coercitivas", "Propuesta Calculo de Multa", "Recurso de Reconsideracion"))
+  filter(!Observaciones %in% c("Multas Coercitivas", "Propuesta Calculo de Multa", "Recurso de Reconsideracion",
+                               "Propuesta cálculo de multa"))
 
 Aglomerado2 <- rbind(G2022F, G2023F, G2024F)
 rm(G2022,G2022F, G2023, G2023F, G2024,G2024F)
@@ -316,6 +317,20 @@ rm(Aglomerado1, Aglomerado2)
 FACTORES <- FACTORES %>%
   mutate(`% FA` = ifelse(is.na(Categoria_FA), 0, `% FA`))
 
+
+######################################################################
+# Comprobando
+
+Facts <- FACTORES %>%
+  distinct(Informes)
+
+Infs <- FINAL %>%
+  distinct(Informes)
+
+Infs$unos <- 1
+
+
+Fusion <-left_join(x = Facts, y = Infs, by="Informes")
 
 ######################################################################
 
