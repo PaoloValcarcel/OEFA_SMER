@@ -316,6 +316,96 @@ rm(Aglomerado1, Aglomerado2)
 FACTORES <- FACTORES %>%
   mutate(`% FA` = ifelse(is.na(Categoria_FA), 0, `% FA`))
 
+
+######################################################################
+
+# Gráfico Acumulado
+
+Eliminar <- c("F.1.1", "F.1.2", "F.1.3", "F.1.4", "F.1.7",
+              "F1 1.1", "F1 1.2", "F1 1.3", "F1 1.4", "F1 1.5",
+              "F1 1.6", "F1 1.7")
+
+# Filtrando solo los F1 al F7
+Facts <- FACTORES %>%
+  filter(!is.na(Factores_agravantes), 
+         !Factores_agravantes %in% Eliminar)
+
+table(Facts$Factores_agravantes)
+colnames(Facts)[colnames(Facts) == "Imputacion"] <- "Num_Imputacion"
+
+# Colapsando la suma de los factores por Informes y número de imputación
+Colapsado <- Facts %>%
+  group_by(Informes, Num_Imputacion) %>%
+  summarise(`% FA` = sum(`% FA`, na.rm = TRUE), .groups = "drop")
+
+
+# Sacando la info de la base de informes (FINAL)
+Extremos <- FINAL %>% dplyr::select(Informes, Num_Imputacion, Colapsar,
+                                    Beneficio_ilícito, Prob_Detección)
+
+Revision1 <- Extremos %>% 
+  filter(Colapsar!="NA")
+
+
+Rev1 <- Revision1 %>%
+  group_by(Informes, Num_Imputacion) %>%
+  summarize(Beneficio_ilícito = ifelse(first(Colapsar) == "Suma",
+                               sum(Beneficio_ilícito, na.rm = TRUE),
+                               max(Beneficio_ilícito, na.rm = TRUE)),
+    Prob_Detección = ifelse(first(Colapsar) == "Suma",
+                            sum(Prob_Detección, na.rm = TRUE),
+                            max(Prob_Detección, na.rm = TRUE)),
+    .groups = 'drop')
+
+
+Revision2 <- Extremos %>% 
+  filter(is.na(Colapsar))
+
+Rev2 <- Revision2 %>%
+  group_by(Informes, Num_Imputacion) %>%
+  summarize(Beneficio_ilícito = max(Beneficio_ilícito, na.rm = TRUE),
+    Prob_Detección = max(Prob_Detección, na.rm = TRUE),
+    .groups = 'drop')
+
+Rev2 <- Revision2 %>%
+  distinct(Informes, Num_Imputacion, Beneficio_ilícito, Prob_Detección)
+
+
+Rev2 <- Revision2 %>%
+  group_by(Informes, Num_Imputacion) %>%
+  mutate(Indicador_Repetidos = ifelse(n() > 1, 1, 0)) %>%
+  ungroup()
+
+write.xlsx(Rev2,"D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/Revision.xlsx")
+
+
+# Ahora ya cuadra Revision2 con Rev2 al tener los mismos datos únicos
+
+Revs <- rbind(Rev1, Rev2)
+Revs <- Revs %>% dplyr::select(Informes)
+
+####################################################################################
+
+
+
+
+
+
+
+
+
+# Para obtener los sin factores con incumplimientos
+#Facts <- FINAL %>% dplyr::select("Informes", "Num_Imputacion", "Incumplimiento_11", "Incumplimiento_19")
+#Facts <- Facts %>%
+#  group_by(Informes, Num_Imputacion) %>%
+#  slice(1) %>% 
+#  ungroup()
+#Sin_Fac <- FACTORES %>%
+#  filter(is.na(Categoria_FA))
+#colnames(Sin_Fac)[colnames(Sin_Fac) == "Imputacion"] <- "Num_Imputacion"
+#Fusion_Fac <- left_join(x = Sin_Fac, y = Facts, by = c("Informes", "Num_Imputacion"))
+#write.xlsx(Fusion_Fac,"D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/Sin_Factores.xlsx")
+
 # Gráfico de barras de factores
 Filtro <- FACTORES[FACTORES$Factores_agravantes %in% c("F1", "F2", "F3", "F5", "F6"), ]
 table(Filtro$Factores_agravantes, useNA = "ifany")
