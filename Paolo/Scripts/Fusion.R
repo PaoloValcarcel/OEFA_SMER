@@ -91,7 +91,9 @@ colnames(RFinal)[colnames(RFinal) == "Fecha de emisión"] <- "Fecha_Emision"
 RFinal$Index <- as.character(RFinal$Index)
 
 # Fusionando ambas bases
+CFinal$Index[is.na(CFinal$Index)] <- 0
 FINAL <-left_join(x = CFinal, y = RFinal, by="Index")
+
 FINAL <- FINAL %>%
   mutate(Merge = if_else(!is.na(Departamento), 1, 0)) 
 
@@ -317,122 +319,6 @@ rm(Aglomerado1, Aglomerado2)
 FACTORES <- FACTORES %>%
   mutate(`% FA` = ifelse(is.na(Categoria_FA), 0, `% FA`))
 
-
-######################################################################
-# Comprobando
-
-Facts <- FACTORES %>%
-  distinct(Informes)
-
-Infs <- FINAL %>%
-  distinct(Informes)
-
-Infs$unos <- 1
-
-
-Fusion <-left_join(x = Facts, y = Infs, by="Informes")
-
-######################################################################
-
-# Gráfico Acumulado
-
-Eliminar <- c("F.1.1", "F.1.2", "F.1.3", "F.1.4", "F.1.7",
-              "F1 1.1", "F1 1.2", "F1 1.3", "F1 1.4", "F1 1.5",
-              "F1 1.6", "F1 1.7")
-
-# Filtrando solo los F1 al F7
-Facts <- FACTORES %>%
-  filter(!is.na(Factores_agravantes), 
-         !Factores_agravantes %in% Eliminar)
-
-table(Facts$Factores_agravantes)
-colnames(Facts)[colnames(Facts) == "Imputacion"] <- "Num_Imputacion"
-
-# Colapsando la suma de los factores por Informes y número de imputación
-Colapsado <- Facts %>%
-  group_by(Informes, Num_Imputacion) %>%
-  summarise(`% FA` = sum(`% FA`, na.rm = TRUE), .groups = "drop")
-
-
-# Sacando la info de la base de informes (FINAL)
-Extremos <- FINAL %>% dplyr::select(Informes, Num_Imputacion, Colapsar,
-                                    Beneficio_ilícito, Prob_Detección)
-
-Revision1 <- Extremos %>% 
-  filter(Colapsar!="NA")
-
-
-Rev1 <- Revision1 %>%
-  group_by(Informes, Num_Imputacion) %>%
-  summarize(Beneficio_ilícito = ifelse(first(Colapsar) == "Suma",
-                               sum(Beneficio_ilícito, na.rm = TRUE),
-                               max(Beneficio_ilícito, na.rm = TRUE)),
-    Prob_Detección = ifelse(first(Colapsar) == "Suma",
-                            sum(Prob_Detección, na.rm = TRUE),
-                            max(Prob_Detección, na.rm = TRUE)),
-    .groups = 'drop')
-
-
-Revision2 <- Extremos %>% 
-  filter(is.na(Colapsar))
-
-Rev2 <- Revision2 %>%
-  group_by(Informes, Num_Imputacion) %>%
-  summarize(Beneficio_ilícito = max(Beneficio_ilícito, na.rm = TRUE),
-    Prob_Detección = max(Prob_Detección, na.rm = TRUE),
-    .groups = 'drop')
-
-Rev2 <- Revision2 %>%
-  distinct(Informes, Num_Imputacion, Beneficio_ilícito, Prob_Detección)
-
-
-Rev2 <- Revision2 %>%
-  group_by(Informes, Num_Imputacion) %>%
-  mutate(Indicador_Repetidos = ifelse(n() > 1, 1, 0)) %>%
-  ungroup()
-
-write.xlsx(Rev2,"D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/Revision.xlsx")
-
-
-# Ahora ya cuadra Revision2 con Rev2 al tener los mismos datos únicos
-
-Revs <- rbind(Rev1, Rev2)
-Revs <- Revs %>% dplyr::select(Informes)
-
-####################################################################################
-
-
-
-
-
-
-
-
-
-# Para obtener los sin factores con incumplimientos
-#Facts <- FINAL %>% dplyr::select("Informes", "Num_Imputacion", "Incumplimiento_11", "Incumplimiento_19")
-#Facts <- Facts %>%
-#  group_by(Informes, Num_Imputacion) %>%
-#  slice(1) %>% 
-#  ungroup()
-#Sin_Fac <- FACTORES %>%
-#  filter(is.na(Categoria_FA))
-#colnames(Sin_Fac)[colnames(Sin_Fac) == "Imputacion"] <- "Num_Imputacion"
-#Fusion_Fac <- left_join(x = Sin_Fac, y = Facts, by = c("Informes", "Num_Imputacion"))
-#write.xlsx(Fusion_Fac,"D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/Sin_Factores.xlsx")
-
-# Gráfico de barras de factores
-Filtro <- FACTORES[FACTORES$Factores_agravantes %in% c("F1", "F2", "F3", "F5", "F6"), ]
-table(Filtro$Factores_agravantes, useNA = "ifany")
-
-ggplot(Filtro, aes(x = Factores_agravantes)) +
-  geom_bar(fill = "skyblue", color = "black") +
-  geom_text(stat = 'count', aes(label = ..count..), vjust = -0.5) + 
-  labs(x = " ",
-       y = "Factores atenuantes y agravantes") +
-  theme_minimal()
-
-rm(Filtro)
 #write.xlsx(Filtro,"D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/INFORMES_GRADUACION.xlsx")
 
 ###################################
@@ -454,7 +340,6 @@ writeData(wb, "Factores", FACTORES, colNames = TRUE)
 # Guardardando el archivo Excel
 saveWorkbook(wb, "D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/INFORMES_GRADUACION.xlsx", overwrite = TRUE)
 
-
 ###################################
 #### Estadísticas Descriptivas ####
 ###################################
@@ -462,11 +347,26 @@ saveWorkbook(wb, "D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/IN
 NOMERGE <- FINAL %>%
   filter(Merge == 0)
 
-FINAL <- FINAL %>%
+MERGE <- FINAL %>%
   filter(Merge == 1)
 
-### --- Total de informes de cálculo de multa y hechos imputados (con RUIAS) --- ###
+# Colores institucionales
+#col = c("#144AA7", "#1d85bf", "#0BC7E0", "#44bfb5", "#8CCD3A", "#FFB500","#696a6a")
 
+### --- Gráfico de barras de factores --- ###
+Filtro <- FACTORES[FACTORES$Factores_agravantes %in% c("F1", "F2", "F3", "F5", "F6"), ]
+table(Filtro$Factores_agravantes, useNA = "ifany")
+
+ggplot(Filtro, aes(x = Factores_agravantes)) +
+  geom_bar(fill = "skyblue", color = "black") +
+  geom_text(stat = 'count', aes(label = ..count..), vjust = -0.5) + 
+  labs(x = " ",
+       y = "Factores atenuantes y agravantes") +
+  theme_minimal()
+
+rm(Filtro)
+
+### --- Total de informes de cálculo de multa y hechos imputados (con RUIAS) --- ###
 Extremos <- FINAL %>% dplyr::select(Informes, Num_Imputacion, Colapsar, year)
 
 Revision1 <- Extremos %>% 
@@ -480,8 +380,6 @@ Revision2 <- Extremos %>%
 
 Rev2 <- Revision2 %>%
   distinct(Informes, Num_Imputacion)
-
-# Ahora ya cuadra Revision2 con Rev2 al tener los mismos datos únicos
 
 Revs <- rbind(Rev1, Rev2)
 Revs <- Revs %>% dplyr::select(Informes)
@@ -513,7 +411,7 @@ ggplot(Glong, aes(x = factor(year), y = Conteo, fill = Origen)) +
   geom_bar(stat = "identity", position = position_dodge2(reverse = TRUE)) +  
   geom_text(aes(label = Conteo), position = position_dodge2(width = 0.9, reverse = TRUE), vjust = -0.5) +
   labs(x = "Año", y = "Información cruzada con el RUIIAS", fill = NULL) +
-  scale_fill_manual(values = c("Hechos_Imputados" = "indianred2", "Informes" = "#7AC5CD"),
+  scale_fill_manual(values = c("Hechos_Imputados" = "#144AA7", "Informes" = "#8CCD3A"),
                     labels = c("Hechos Imputados", "Informes")) +
   theme_minimal() +
   theme(legend.position = "bottom")
@@ -522,7 +420,7 @@ rm(Grafico, Glong, Rev1, Rev2, Revision1, Revision2, Revs, Extremos, cRevs, cUni
 
 ### --- Infracciones analizadas por sectores para el período de 2022 a 2024 --- ###
 
-Extremos <- FINAL %>% dplyr::select(Informes, Num_Imputacion, Colapsar, SectorEco)
+Extremos <- MERGE %>% dplyr::select(Informes, Num_Imputacion, Colapsar, SectorEco)
 
 Hechos <- Extremos %>% 
   filter(is.na(Colapsar))
@@ -565,7 +463,7 @@ rm(data_pie, Imputaciones)
 
 ### --- Gráfico de cajas de la sanciones impuestas por imputación (con y sin valores atípicos) --- ###
 
-General <- FINAL %>% dplyr::select(Informes, Num_Imputacion, Colapsar, year, Multa_Final)
+General <- MERGE %>% dplyr::select(Informes, Num_Imputacion, Colapsar, year, Multa_Final)
 Hechos <- General %>% filter(is.na(Colapsar))
 Hechos <- Hechos %>% dplyr::select(Informes, Num_Imputacion, year, Multa_Final)
 Extremos <- General %>%  filter(Colapsar!="NA")
@@ -616,7 +514,7 @@ Est3 <- Filtro %>%
     promedio = mean(Multa_Final, na.rm = TRUE),  
     .groups = 'drop')
 
-
+#col = c("#144AA7", "#1d85bf", "#0BC7E0", "#44bfb5", "#8CCD3A", "#FFB500","#696a6a")
 # Configurando la ventana gráfica para mostrar 2 gráficos en 1 fila
 par(mfrow = c(1, 2))
 
@@ -625,7 +523,7 @@ boxplot(Hechos_Multas$Multa_Final ~ Hechos_Multas$year,
         main = "Con outliers",
         ylab = "Multa final (en UIT)",
         xlab = " ",
-        col = "darkolivegreen4",
+        col = "#8CCD3A",
         outline = TRUE)
 
 # Gráfico 2: Distribución de las multas sin outliers
@@ -633,7 +531,7 @@ boxplot(Filtro$Multa_Final ~ Filtro$year,
         main = "Sin outliers", 
         ylab = "Multa final (en UIT)",
         xlab = " ",
-        col = "darkgoldenrod2",
+        col = "#FFB500",
         outline = TRUE)
 
 # Restaurar la configuración de la ventana gráfica a su estado original
@@ -646,7 +544,7 @@ par(mfrow = c(1, 1))
 rm(Est1, Est2, Est3, Filtro, Hechos_Multas)
 
 ### ---- Distribución de multas por sectores ---- ###
-General <- FINAL %>% dplyr::select(Informes, Num_Imputacion, Colapsar, year, Multa_Final, SectorEco)
+General <- MERGE %>% dplyr::select(Informes, Num_Imputacion, Colapsar, year, Multa_Final, SectorEco)
 Hechos <- General %>% filter(is.na(Colapsar))
 Hechos <- Hechos %>% dplyr::select(Informes, Num_Imputacion, year, Multa_Final,  SectorEco)
 Extremos <- General %>% filter(Colapsar!="NA")
@@ -711,7 +609,7 @@ rm(Est4, Hechos_Multas, Filtro2)
 
 ### --- Tabla estadística del Beneficio Ilícito por sector --- ###
 
-General <- FINAL %>% dplyr::select(Informes, Num_Imputacion, Colapsar, year, 
+General <- MERGE %>% dplyr::select(Informes, Num_Imputacion, Colapsar, year, 
                                    Beneficio_ilícito, Multa_Final, SectorEco)
 Hechos <- General %>% filter(is.na(Colapsar))
 Hechos <- Hechos %>% dplyr::select(Informes, Num_Imputacion, year, Beneficio_ilícito,  SectorEco)
@@ -773,7 +671,7 @@ rm(BI_Sectores, Est5, Ext_colaps, Extremos, Filtro3, General, Hechos, Hechos_Ili
 
 # Convertir las variables de fechas al formato Date (si no lo están ya)
 
-Fechas <- FINAL %>% dplyr::select("SectorEco", "FinSup", "InicioPAS", "Fecha_Informe", "year",
+Fechas <- MERGE %>% dplyr::select("SectorEco", "FinSup", "InicioPAS", "Fecha_Informe", "year",
                                   "Informes", "Num_Imputacion", "Colapsar")
 
 Fechas$FinSup <- as.numeric(Fechas$FinSup)
@@ -792,7 +690,6 @@ Colaps <- Extremos %>%
 
 Fechas_Hechos <- rbind(Hechos, Colaps)
 rm(Colaps, Hechos, Extremos, Fechas)
-
 
 # Calcular las diferencias en meses entre las fechas
 
@@ -926,8 +823,7 @@ Max_sector <- Fechas %>%
   pivot_longer(
     cols = starts_with("Max"),
     names_to = "Transicion",
-    values_to = "Meses_max"
-  )
+    values_to = "Meses_max")
 
 ggplot(Max_sector, aes(x = SectorEco, y = Meses_max, fill = Transicion)) +
   geom_bar(stat = "identity", position = position_dodge(), width = 0.6, color = "black") +
@@ -951,14 +847,14 @@ Deteccion <- FINAL %>%
   mutate(Prob_Detección = factor(Prob_Detección, levels = c(0.1, 0.5, 0.75, 1)))
 
 ggplot(Deteccion, aes(x = Prob_Detección, y = n)) +
-  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  geom_bar(stat = "identity", fill = "#0BC7E0", color = "black") +
   geom_text(aes(label = n), vjust = -0.5) +
   labs(x = "Probabilidad de Detección",
        y = "Frecuencia") +
   theme_minimal()
 
 # Por año
-Detec_año <- FINAL %>%
+Detec_año <- MERGE %>%
   count(year, Prob_Detección) %>%
   mutate(Prob_Detección = factor(Prob_Detección, levels = c(0.1, 0.5, 0.75, 1)))
 
@@ -974,8 +870,29 @@ ggplot(Detec_año, aes(x = Prob_Detección, y = n, fill = factor(year))) +
   theme_minimal() +
   theme(legend.position = "bottom")
 
+Detec_nivel <- FINAL %>%
+  count(Prob_Detección, year) %>%
+  mutate(Prob_Detección = factor(Prob_Detección, levels = c(0.5, 0.75, 1))) 
+
+Detec_nivel <- Detec_nivel %>% 
+  filter(!is.na(Prob_Detección))
+
+#col = c("#144AA7", "#1d85bf", "#0BC7E0", "#44bfb5", "#8CCD3A", "#FFB500","#696a6a")
+
+ggplot(Detec_nivel, aes(x = factor(year), y = n, fill = Prob_Detección)) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+  geom_text(aes(label = n), position = position_dodge(0.9), vjust = -0.5) +
+  labs(x = "Año",
+       y = "Frecuencia",
+       fill = NULL) +
+  scale_fill_manual(values = c("0.5" = "#8CCD3A", 
+                               "0.75" = "#0BC7E0", 
+                               "1" = "#144AA7")) + 
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
 # Por sector económico
-Detec_Sector <- FINAL %>%
+Detec_Sector <- MERGE %>%
   count(SectorEco, Prob_Detección)
 
 
@@ -1080,11 +997,12 @@ Fases2 <- Fases %>%
 
 rm(Completo, Fase_2)
 
+#col = c("#144AA7", "#1d85bf", "#0BC7E0", "#44bfb5", "#8CCD3A", "#FFB500","#696a6a")
 # Gráfico de excluidos
 ggplot(Fases2, aes(x = Año, y = Total, fill = Hecho_imputado)) +
   geom_bar(stat = "identity", position = "dodge") +
   geom_text(aes(label = Total), vjust = -0.5, position = position_dodge(0.9), size = 3.5) +
-  scale_fill_viridis_d() +  
+  scale_fill_manual(values = c("#FFB500", "#8CCD3A", "#44bfb5", "#1d85bf", "#144AA7")) +  
   labs(x = "Año",
        y = "Total") +
   theme_minimal() +
@@ -1100,3 +1018,271 @@ Fases3 <- Fases %>%
 
 knitr::kable((Fases3))
 
+
+### ----- Gráfico de incumplimientos por informes ----- ### 
+
+cFINAL <- MERGE %>%
+  mutate(Incumplimientos = case_when(
+    Incumplimiento_11 == 'Incumplimiento de Límites Máximos Permisibles en efluentes' ~ 'Incumplimiento LMP',
+    Incumplimiento_11 == 'Incumplimiento de Límites Máximos Permisibles en emisiones' ~ 'Incumplimiento LMP',
+    Incumplimiento_11 == 'Incumplimiento del Instrumento de Gestión Ambiental' ~ 'Incumplimiento IGA',
+    Incumplimiento_11 == 'No contar con Instrumentos de Gestión Ambiental' ~ 'Incumplimiento IGA',
+    Incumplimiento_11 == 'Incumplimiento de medidas administrativas (medidas cautelares, medidas correctivas y preventivas)' ~ 'Incumplimiento de med. administrativas',
+    Incumplimiento_11 == 'No brindar información, presentar información inexacta o fuera de plazo' ~ 'No presentó información',
+    Incumplimiento_11 == 'No efectuar monitoreos (en el plazo, alcance y/o frecuencia)' ~ 'No efectuar monitoreos',
+    Incumplimiento_11 == 'Obstaculizar o impedir labores de supervisión y/o fiscalización' ~ 'Obstaculizar o impedir labores',
+    Incumplimiento_11 == 'Incumplimiento de normas de residuos sólidos' ~ 'Incumplimiento de residuos sólidos',
+    TRUE ~ Incumplimiento_11))
+
+table(cFINAL$Incumplimientos)
+
+Inc <- cFINAL %>% dplyr::select("Informes", "Num_Imputacion", "Incumplimientos")
+
+Inc <- Inc %>% 
+  filter(Incumplimientos!="NA")
+
+Unicos <- Inc %>%
+  distinct(Informes, Num_Imputacion, Incumplimientos)
+
+Informes <- Unicos %>%
+  group_by(Incumplimientos) %>%
+  summarise(Frecuencia = n(), .groups = "drop")
+
+ggplot(Informes, aes(x = Incumplimientos, y = Frecuencia, fill = as.factor(Incumplimientos))) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  geom_text(aes(label = Frecuencia), 
+            vjust = -0.5, 
+            position = position_dodge(width = 0.9), 
+            size = 3) +
+  labs(x = "Incumplimientos", 
+       y = "Frecuencia", 
+       fill = NULL) +
+  theme_minimal() +
+  theme(legend.position = "bottom", 
+    axis.text.x = element_blank() ) +
+  guides(fill = guide_legend(nrow = 3, byrow = TRUE)) + 
+  scale_fill_viridis_d(option = "viridis")
+
+rm(Inc, Unicos, Informes)
+
+###----- Gráfico de incumplimientos por factores de graduación -----###
+
+# Para las categorías NA
+SFac <- FACTORES %>% 
+  filter(is.na(Categoria_FA))
+
+# Para los factores del F1 al F6
+SFac <- FACTORES %>%
+  filter(Factores_agravantes %in% c("F1", "F2", "F3", "F4", "F5", "F6"))
+colnames(SFac)[colnames(SFac) == "Imputacion"] <- "Num_Imputacion"
+
+duplicados <- SFac %>%
+  group_by(Informes, Num_Imputacion, Factores_agravantes) %>%
+  filter(n() > 1) %>%
+  ungroup()
+
+SFac <- SFac %>% dplyr::select("Informes", "Num_Imputacion", "Factores_agravantes")
+
+SFac <- SFac %>%
+  distinct(Informes, Num_Imputacion, Factores_agravantes)
+
+CRuias <- cFINAL %>% dplyr::select("Informes", "Num_Imputacion", "Incumplimientos")
+
+Unicos <- CRuias %>%
+  distinct(Informes, Num_Imputacion, Incumplimientos)
+
+Fusion <- left_join(x = SFac, y = Unicos, by = c("Informes", "Num_Imputacion"))
+
+# Para versión con F0
+Fusion <- Fusion %>%
+  distinct(Informes, Num_Imputacion, Factores_agravantes, .keep_all = TRUE)
+
+# Para versión con F1 al F6
+Fusion <- Fusion %>%
+  distinct(Informes, Num_Imputacion, Factores_agravantes, Incumplimientos,.keep_all = TRUE)
+
+Fusion <- Fusion %>% 
+  filter(!is.na(Incumplimientos))
+
+Factores <- Fusion %>%
+  group_by(Incumplimientos) %>%
+  summarise(Frecuencia = n(), .groups = "drop")
+
+ggplot(Factores, aes(x = Incumplimientos, y = Frecuencia, fill = as.factor(Incumplimientos))) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  geom_text(aes(label = Frecuencia), 
+            vjust = -0.5, 
+            position = position_dodge(width = 0.9), 
+            size = 3) +
+  labs(x = "Incumplimientos", 
+       y = "Frecuencia", 
+       fill = NULL) +
+  theme_minimal() +
+  theme(legend.position = "bottom", 
+        axis.text.x = element_blank() ) +
+  guides(fill = guide_legend(nrow = 4, byrow = TRUE)) + 
+  scale_fill_viridis_d(option = "viridis")
+
+rm(SFac, CRuias, Unicos, Fusion, Factores)
+
+
+###---- Gráfico del impacto de los factores acumulado -----###
+
+Eliminar <- c("F.1.1", "F.1.2", "F.1.3", "F.1.4", "F.1.7",
+              "F1 1.1", "F1 1.2", "F1 1.3", "F1 1.4", "F1 1.5",
+              "F1 1.6", "F1 1.7")
+
+# Filtrando solo los F1 al F7
+Facts <- FACTORES %>%
+  filter(!is.na(Factores_agravantes), 
+         !Factores_agravantes %in% Eliminar)
+
+table(Facts$Factores_agravantes)
+colnames(Facts)[colnames(Facts) == "Imputacion"] <- "Num_Imputacion"
+
+# Colapsando la suma de los factores por Informes y número de imputación
+Colapsado <- Facts %>%
+  group_by(Informes, Num_Imputacion) %>%
+  summarise(`% FA` = sum(`% FA`, na.rm = TRUE), .groups = "drop")
+
+
+# Sacando la info de la base de informes (FINAL)
+Extremos <- FINAL %>% dplyr::select(Informes, Num_Imputacion, Colapsar,
+                                    Beneficio_ilícito, Prob_Detección, Datos)
+
+Revision1 <- Extremos %>% 
+  filter(Colapsar!="NA")
+
+Revision2 <- Extremos %>% 
+  filter(is.na(Colapsar))
+
+Rev1 <- Revision1 %>%
+  group_by(Informes, Num_Imputacion) %>%  
+  summarise(
+    Beneficio_ilícito = max(Beneficio_ilícito, na.rm = TRUE),  
+    Prob_Detección = max(Prob_Detección, na.rm = TRUE)) %>%
+  ungroup()
+
+Rev2 <- Revision2 %>% dplyr::select(Informes, Num_Imputacion, Beneficio_ilícito, Prob_Detección)
+
+Revs <- rbind(Rev1, Rev2)
+rm(Rev1, Rev2, Revision1, Revision2, Extremos, Facts)
+
+Grafico <- left_join(x = Colapsado, y = Revs, by = c("Informes", "Num_Imputacion"))
+rm(Colapsado, Revs)
+
+Grafico$Efecto_Factores <- Grafico$Beneficio_ilícito*Grafico$`% FA`
+Grafico$Multa <- round(Grafico$Beneficio_ilícito / Grafico$Prob_Detección,1) * (1 + Grafico$`% FA`)
+Grafico$Efecto_Prob <- Grafico$Multa*(1-Grafico$Prob_Detección)
+Grafico$Comrpobacion<- Grafico$Beneficio_ilícito + Grafico$Efecto_Factores + Grafico$Efecto_Prob 
+
+# Quitando outliers
+P90 <- Grafico %>%
+  summarise(p90_Beneficio_ilícito = quantile(Beneficio_ilícito, 0.9, na.rm = TRUE),
+            p90_Efecto_Prob = quantile(Efecto_Prob, 0.9, na.rm = TRUE),
+            p90_Efecto_Factores = quantile(Efecto_Factores, 0.9, na.rm = TRUE))
+
+# Eliminando los outliers (valores por encima del percentil 90)
+Filtro <- Grafico %>%
+  filter(Beneficio_ilícito <= P90$p90_Beneficio_ilícito,
+         Efecto_Prob <= P90$p90_Efecto_Prob,
+         Efecto_Factores <= P90$p90_Efecto_Factores)
+
+# Cuartiles de cada variable
+cuartiles <- Filtro %>%
+  summarise(
+    q25_Beneficio_ilícito = quantile(Beneficio_ilícito, 0.25, na.rm = TRUE),
+    q50_Beneficio_ilícito = quantile(Beneficio_ilícito, 0.5, na.rm = TRUE),
+    q75_Beneficio_ilícito = quantile(Beneficio_ilícito, 0.75, na.rm = TRUE),
+    
+    q25_Efecto_Prob = quantile(Efecto_Prob, 0.25, na.rm = TRUE),
+    q50_Efecto_Prob = quantile(Efecto_Prob, 0.5, na.rm = TRUE),
+    q75_Efecto_Prob = quantile(Efecto_Prob, 0.75, na.rm = TRUE),
+    
+    q25_Efecto_Factores = quantile(Efecto_Factores, 0.25, na.rm = TRUE),
+    q50_Efecto_Factores = quantile(Efecto_Factores, 0.5, na.rm = TRUE),
+    q75_Efecto_Factores = quantile(Efecto_Factores, 0.75, na.rm = TRUE))
+
+# Filtrando por los cuartiles 
+# Primer cuartil (Q1) - Menor o igual al 25%
+Cuartil1 <- Filtro %>%
+  filter(
+    Beneficio_ilícito <= cuartiles$q25_Beneficio_ilícito,
+    Efecto_Prob <= cuartiles$q25_Efecto_Prob,
+    Efecto_Factores <= cuartiles$q25_Efecto_Factores) %>%
+  select(Beneficio_ilícito, Efecto_Prob, Efecto_Factores, Num_Imputacion)
+
+# Segundo cuartil (Q2) - Entre el 25% y el 50%
+Cuartil2 <- Filtro %>%
+  filter(
+    Beneficio_ilícito > cuartiles$q25_Beneficio_ilícito & Beneficio_ilícito <= cuartiles$q50_Beneficio_ilícito,
+    Efecto_Prob > cuartiles$q25_Efecto_Prob & Efecto_Prob <= cuartiles$q50_Efecto_Prob,
+    Efecto_Factores > cuartiles$q25_Efecto_Factores & Efecto_Factores <= cuartiles$q50_Efecto_Factores) %>%
+  select(Beneficio_ilícito, Efecto_Prob, Efecto_Factores, Num_Imputacion)
+
+# Tercer cuartil (Q3) - Entre el 50% y el 75%
+Cuartil3 <- Filtro %>%
+  filter(
+    Beneficio_ilícito > cuartiles$q50_Beneficio_ilícito & Beneficio_ilícito <= cuartiles$q75_Beneficio_ilícito,
+    Efecto_Prob > cuartiles$q50_Efecto_Prob & Efecto_Prob <= cuartiles$q75_Efecto_Prob,
+    Efecto_Factores > cuartiles$q50_Efecto_Factores & Efecto_Factores <= cuartiles$q75_Efecto_Factores) %>%
+  select(Beneficio_ilícito, Efecto_Prob, Efecto_Factores, Num_Imputacion)
+
+# Cuarto cuartil (Q4) - Mayor al 75%
+Cuartil4 <- Filtro %>%
+  filter(
+    Beneficio_ilícito > cuartiles$q75_Beneficio_ilícito,
+    Efecto_Prob > cuartiles$q75_Efecto_Prob,
+    Efecto_Factores > cuartiles$q75_Efecto_Factores) %>%
+  select(Beneficio_ilícito, Efecto_Prob, Efecto_Factores, Num_Imputacion)
+
+
+# Agregarlo al data frame (si Cuartil1 es un data frame)
+
+# Estableciendo los cuadrantes
+
+Cuartil1$Correlativo <- seq_len(nrow(Cuartil1))
+#X1 <- Cuartil1$Num_Imputacion
+X1 <- Cuartil1$Correlativo
+Y1 <- Cuartil1[, c(1, 3, 2)]
+
+Cuartil2$Correlativo <- seq_len(nrow(Cuartil2))
+#X2 <- Cuartil2$Num_Imputacion
+X2 <- Cuartil2$Correlativo
+Y2 <- Cuartil2[, c(1, 3, 2)]
+
+Cuartil3$Correlativo <- seq_len(nrow(Cuartil3))
+#X3 <- Cuartil3$Num_Imputacion
+X3 <- Cuartil3$Correlativo
+Y3 <- Cuartil3[, c(1, 3, 2)]
+
+Cuartil4$Correlativo <- seq_len(nrow(Cuartil4))
+#X4 <- Cuartil4$Num_Imputacion
+X4 <- Cuartil4$Correlativo
+Y4 <- Cuartil4[, c(1, 3, 2)]
+
+library(areaplot)
+#"#144AA7", "#1d85bf", "#0BC7E0", "#44bfb5", "#8CCD3A", "#FFB500","#696a6a"
+#cols <- hcl.colors(6, palette = "viridis", alpha = 0.8)
+cols <- c("#44bfb5", "#8CCD3A", "#144AA7")
+
+par(mfrow = c(2, 2))
+areaplot(X1, Y1,col = cols, legend = TRUE, xlab = " ", ylab = "Multa", 
+         args.legend = list(x = "topleft", cex = 0.65), main="Primer cuartil", xaxt = "n")
+legend("topleft", legend = c("Beneficio ilícito", "Efecto factores", "Efecto Probabilidad"),
+       fill = cols, cex = 0.65)
+
+areaplot(X2, Y2,col = cols, xlab = " ", ylab = "Multa",
+         args.legend = list(x = "topleft", cex = 0.65), main="Segundo cuartil", xaxt = "n")
+#legend("topleft", legend = c("Beneficio ilícito", "Efecto factores", "Efecto Probabilidad"), fill = cols, cex = 0.65)
+
+areaplot(X3, Y3,col = cols, xlab = " ", ylab = "Multa",
+         args.legend = list(x = "topleft", cex = 0.65), main="Tercer cuartil", xaxt = "n")
+#legend("topleft", legend = c("Beneficio ilícito", "Efecto factores", "Efecto Probabilidad"), fill = cols, cex = 0.65)
+
+areaplot(X4, Y4,col = cols, xlab = " ", ylab = "Multa",
+         args.legend = list(x = "topleft", cex = 0.65), main="Cuarto cuartil", xaxt = "n")
+#legend("topleft", legend = c("Beneficio ilícito", "Efecto factores", "Efecto Probabilidad"), fill = cols, cex = 0.65)
+
+rm(Cuartil1, Cuartil2, Cuartil3, Cuartil4, cuartiles, Filtro, Grafico, P90, Y1, Y2, Y3, Y4, X1,
+   X2, X3, X4, Eliminar, cols)
