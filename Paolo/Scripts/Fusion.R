@@ -226,7 +226,7 @@ G2022F<- G2022 %>%
   filter(!Categoria_FA %in% c("Reconsideración", "Multa coercitiva", "Sin factor"))
 
 G2022F<- G2022F %>%
-  filter(!Observaciones %in% c("Eliminado de la conclusió del informe de sanción por motivo específico"))
+  filter(!Observaciones %in% c("Eliminado de la conclusió del informe de sanción por motivo específico", "Extremo 2"))
 
 G2023F<- G2023 %>%
   filter(!Categoria_FA %in% c("Reconsideración", "multa coercitiva", "multas coercitivas"))
@@ -446,6 +446,9 @@ data_pie <- Imputaciones %>%
   mutate(percentage = count / sum(count) * 100)
 
 # Gráficos de pie
+
+#col = c("#144AA7", "#1d85bf", "#0BC7E0", "#44bfb5", "#8CCD3A", "#FFB500","#696a6a")
+
 ggplot(data_pie, aes(x = "", y = count, fill = SectorEco)) +
   geom_bar(stat = "identity", width = 1) +
   coord_polar(theta = "y") +
@@ -458,6 +461,22 @@ ggplot(data_pie, aes(x = "", y = count, fill = SectorEco)) +
   scale_fill_viridis_d() +  
   labs(fill = NULL) +  
   theme(legend.position = "bottom")
+
+ggplot(data_pie, aes(x = "", y = count, fill = SectorEco)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  theme_void() +  
+  geom_text(aes(label = sprintf("%.1f%%", percentage), 
+                x = 1.6),  
+            position = position_stack(vjust = 0.5), 
+            size = 4,  
+            color = "black",  
+            fontface = "bold") +  
+  scale_fill_manual(values = c("#144AA7", "#4D4D4D", "#0BC7E0", "#44bfb5", "#8CCD3A", "#FFB500", "#696a6a", "#1d85bf")) +  
+  labs(fill = NULL) +  
+  theme(legend.position = "bottom")
+
+
 
 rm(data_pie, Imputaciones)
 
@@ -1076,10 +1095,10 @@ SFac <- FACTORES %>%
   filter(Factores_agravantes %in% c("F1", "F2", "F3", "F4", "F5", "F6"))
 colnames(SFac)[colnames(SFac) == "Imputacion"] <- "Num_Imputacion"
 
-duplicados <- SFac %>%
-  group_by(Informes, Num_Imputacion, Factores_agravantes) %>%
-  filter(n() > 1) %>%
-  ungroup()
+#duplicados <- SFac %>%
+#  group_by(Informes, Num_Imputacion, Factores_agravantes) %>%
+#  filter(n() > 1) %>%
+#  ungroup()
 
 SFac <- SFac %>% dplyr::select("Informes", "Num_Imputacion", "Factores_agravantes")
 
@@ -1093,13 +1112,13 @@ Unicos <- CRuias %>%
 
 Fusion <- left_join(x = SFac, y = Unicos, by = c("Informes", "Num_Imputacion"))
 
-# Para versión con F0
 Fusion <- Fusion %>%
   distinct(Informes, Num_Imputacion, Factores_agravantes, .keep_all = TRUE)
 
-# Para versión con F1 al F6
-Fusion <- Fusion %>%
-  distinct(Informes, Num_Imputacion, Factores_agravantes, Incumplimientos,.keep_all = TRUE)
+duplicados <- Fusion %>%
+  group_by(Informes, Num_Imputacion, Factores_agravantes) %>%
+  filter(n() > 1) %>%
+  ungroup()
 
 Fusion <- Fusion %>% 
   filter(!is.na(Incumplimientos))
@@ -1286,3 +1305,88 @@ areaplot(X4, Y4,col = cols, xlab = " ", ylab = "Multa",
 
 rm(Cuartil1, Cuartil2, Cuartil3, Cuartil4, cuartiles, Filtro, Grafico, P90, Y1, Y2, Y3, Y4, X1,
    X2, X3, X4, Eliminar, cols)
+
+
+### ---------- Gráfico de incumplimientos RUIAS ------------ ###
+
+RFinal <- RUIAS %>% dplyr::select("ID", "Administrado", "RUC", "Sector económico", "Departamento",
+                                  "Provincia", "Distrito", "Inicio de supervisión", "Fin de supervisión", 
+                                  "Documento de inicio", "Fecha de emisión",
+                                  "Infracción cometida sancionada (Clasificación de 11)",
+                                  "Fecha de notificación...23")
+
+colnames(RFinal)[colnames(RFinal) == "ID"] <- "Index"
+colnames(RFinal)[colnames(RFinal) == "Sector económico"] <- "SectorEco"
+colnames(RFinal)[colnames(RFinal) == "Inicio de supervisión"] <- "InicioSup"
+colnames(RFinal)[colnames(RFinal) == "Fin de supervisión"] <- "FinSup"
+colnames(RFinal)[colnames(RFinal) == "Infracción cometida sancionada (Clasificación de 11)"] <- "Incumplimiento_11"
+colnames(RFinal)[colnames(RFinal) == "Fecha de notificación...23"] <- "InicioPAS"
+
+Incumplimientos <- RFinal %>%
+  mutate(Incumplimientos = case_when(
+    Incumplimiento_11 == 'Incumplimiento de Límites Máximos Permisibles en efluentes' ~ 'Incumplimiento LMP',
+    Incumplimiento_11 == 'Incumplimiento de Límites Máximos Permisibles en emisiones' ~ 'Incumplimiento LMP',
+    Incumplimiento_11 == 'Incumplimiento del Instrumento de Gestión Ambiental' ~ 'Incumplimiento IGA',
+    Incumplimiento_11 == 'No contar con Instrumentos de Gestión Ambiental' ~ 'Incumplimiento IGA',
+    Incumplimiento_11 == 'Incumplimiento de medidas administrativas (medidas cautelares, medidas correctivas y preventivas)' ~ 'Incumplimiento de med. administrativas',
+    Incumplimiento_11 == 'No brindar información, presentar información inexacta o fuera de plazo' ~ 'No presentó información',
+    Incumplimiento_11 == 'No efectuar monitoreos (en el plazo, alcance y/o frecuencia)' ~ 'No efectuar monitoreos',
+    Incumplimiento_11 == 'Obstaculizar o impedir labores de supervisión y/o fiscalización' ~ 'Obstaculizar o impedir labores',
+    Incumplimiento_11 == 'Incumplimiento de normas de residuos sólidos' ~ 'Incumplimiento de residuos sólidos',
+    Incumplimiento_11 == 'Incumplimiento de recomendación, mandato o disposición administrativa' ~ 'Incumplimiento de disposición admin.',
+    TRUE ~ Incumplimiento_11))
+
+rm(RFinal)
+
+Incumplimientos$InicioPAS <- as.Date(Incumplimientos$InicioPAS, origin = "1899-12-30")
+Incumplimientos$Año_InicioPAS <- format(Incumplimientos$InicioPAS, "%Y")
+
+Pedido <- Incumplimientos %>%
+          filter(Año_InicioPAS>=2021)
+
+table(Pedido$Año_InicioPAS)
+
+Pedido <- Pedido %>% 
+  filter(Incumplimientos!="NA")
+
+Resumen <- Pedido %>%
+  group_by(Incumplimientos) %>%
+  summarise(Frecuencia = n(), .groups = "drop")
+
+Resumen2 <- Pedido %>%
+  group_by(Incumplimientos, Año_InicioPAS) %>%
+  summarise(Frecuencia = n(), .groups = "drop")
+
+# Gráfico general
+ggplot(Resumen, aes(x = Incumplimientos, y = Frecuencia, fill = as.factor(Incumplimientos))) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  geom_text(aes(label = Frecuencia), 
+            vjust = -0.5, 
+            position = position_dodge(width = 0.9), 
+            size = 3) +
+  labs(x = "Incumplimientos", 
+       y = "Frecuencia", 
+       fill = NULL) +
+  theme_minimal() +
+  theme(legend.position = "bottom", 
+        axis.text.x = element_blank() ) +
+  guides(fill = guide_legend(nrow = 3, byrow = TRUE)) + 
+  scale_fill_viridis_d(option = "viridis")
+
+# Gráfico por año
+ggplot(Resumen2, aes(x = Año_InicioPAS, y = Frecuencia, fill = as.factor(Incumplimientos))) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  geom_text(aes(label = Frecuencia), 
+            vjust = -0.5, 
+            position = position_dodge(width = 0.9), 
+            size = 3) +
+  labs(x = NULL, 
+       y = "Frecuencia", 
+       fill = NULL) +
+  theme_minimal() +
+  theme(legend.position = "bottom", 
+        axis.text.x = element_text(angle = 45, hjust = 1)) +
+        guides(fill = guide_legend(nrow = 3, byrow = TRUE)) + 
+        scale_fill_viridis_d(option = "viridis")
+
+rm(Incumplimientos, Pedido, Resumen, Resumen2)
