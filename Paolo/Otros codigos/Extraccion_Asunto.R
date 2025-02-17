@@ -77,7 +77,7 @@ Informes_2024N <- data.table(
   Correlativo = seq_along(resultados),
   Informes = unlist(lapply(resultados, function(x) ifelse(is.null(x), NA, x))))
 
-rm(informes, resultados,contenido_pdfs)
+rm(informes, resultados)
 
 Final24N <- left_join(Informes_2024N, Asunto_2024N, by = "Correlativo")
 rm(Informes_2024N, Asunto_2024N)
