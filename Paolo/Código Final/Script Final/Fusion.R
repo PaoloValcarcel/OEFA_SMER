@@ -15,18 +15,21 @@ url1 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C
 temp_file <- tempfile(fileext = ".xlsx")
 GET(url1, write_disk(temp_file, overwrite = TRUE))
 Consolidado1 <- read_excel(temp_file, sheet = "Componentes")  
+Consolidado1$Año <- 2022
 rm(temp_file, url1)
 
 url2 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20Finales/Informes_2023.xlsx"
 temp_file <- tempfile(fileext = ".xlsx")
 GET(url2, write_disk(temp_file, overwrite = TRUE))
 Consolidado2 <- read_excel(temp_file, sheet = "Componentes")  
+Consolidado2$Año <- 2023
 rm(temp_file, url2)
 
 url3 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20Finales/Informes_2024.xlsx"
 temp_file <- tempfile(fileext = ".xlsx")
 GET(url3, write_disk(temp_file, overwrite = TRUE))
 Consolidado3 <- read_excel(temp_file, sheet = "Componentes")  
+Consolidado3$Año <- 2024
 rm(temp_file, url3)
 
 # Carga de las bases nuevas
@@ -34,18 +37,21 @@ url4 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C
 temp_file <- tempfile(fileext = ".xlsx")
 GET(url4, write_disk(temp_file, overwrite = TRUE))
 Consolidado4 <- read_excel(temp_file, sheet = "Consolidado")  
+Consolidado4$Año <- 2022
 rm(temp_file, url4)
 
 url5 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20Finales/Info_2023.xlsx"
 temp_file <- tempfile(fileext = ".xlsx")
 GET(url5, write_disk(temp_file, overwrite = TRUE))
 Consolidado5 <- read_excel(temp_file, sheet = "Consolidado")  
+Consolidado5$Año <- 2023
 rm(temp_file, url5)
 
 url6 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20Finales/Info_2024.xlsx"
 temp_file <- tempfile(fileext = ".xlsx")
 GET(url6, write_disk(temp_file, overwrite = TRUE))
 Consolidado6 <- read_excel(temp_file, sheet = "Consolidado")  
+Consolidado6$Año <- 2024
 rm(temp_file, url6)
 
 # Carga de información de RUIAS
@@ -56,38 +62,43 @@ RUIAS <- read_excel(temp_file, sheet = "RUIAS")
 rm(temp_file, url7)
 
 
+# Consolidando la información
+Antigua <- rbind(Consolidado1, Consolidado2, Consolidado3)
+rm(Consolidado1, Consolidado2, Consolidado3)
 
-# Quitando las observaciones que no usaremos del consolidado
+Nueva <- rbind(Consolidado4, Consolidado5, Consolidado6)
+rm(Consolidado4, Consolidado5, Consolidado6)
 
-CFinal1 <- Consolidado %>%
-  filter(!Propuesta_Multa %in% c("si"),!Observaciones%in% c("Se debe eliminar por criterio del informe"))
+# Filtrando la información necesaria
+Antigua <- Antigua %>% 
+  filter(Detalle != "Eliminar" | is.na(Detalle))
 
-colnames(CFinal1)[colnames(CFinal1) == "ID2"] <- "Index"
-CFinal1$Index <- as.character(CFinal1$Index)
+Antigua <- Antigua %>% 
+  filter(Filtro=="Cálculo de multa")
 
-colnames(Consolidado2)[colnames(Consolidado2) == "ID RUIAS"] <- "Index"
-colnames(Consolidado2)[colnames(Consolidado2) == "Sub extremo"] <- "Sub_extremo"
-colnames(Consolidado2)[colnames(Consolidado2) == "Expedientes"] <- "Expediente"
-Consolidado2$Index <- as.character(Consolidado2$Index)
+Nueva <- Nueva %>% 
+  filter(Filtro=="Cálculo de multa")
+
+# Edición de base Antigua
+colnames(Antigua)[colnames(Antigua) == "Sub_extremo"] <- "Extremo"
+Antigua <- Antigua %>% select(-Detalle, -Observaciones)
+Antigua$Datos <- "Primera fase"
+
+# Edición de base Nueva
+Nueva <- Nueva %>% select(-"Sub extremo")
+Nueva$Datos <- "Segunda fase"
+
+# Append principal
+CFinal <- rbind(Antigua, Nueva)
+
+# Ediciones extra
+colnames(CFinal)[colnames(CFinal) == "ID"] <- "Index"
+CFinal$Index <- as.character(CFinal$Index)
+colnames(CFinal)[colnames(CFinal) == "Expedientes"] <- "Expediente"
+
+rm(Antigua, Nueva)
 
 
-CFinal1 <- CFinal1 %>% dplyr::select("ID", "Expediente", "Informes", "Hecho_imputado", 
-                                  "Num_Imputacion","Sub_extremo", "Monto", "Index",
-                                  "COS_anual", "T_meses",  "Costo_evitado", "Unidad_monetaria",
-                                  "Tipo_de_cambio", "Beneficio_ilícito", "Prob_Detección",
-                                  "Multa", "Multa_Final", "Sancion_total",  "Colapsar", "year")
-
-CFinal2 <- Consolidado2 %>% dplyr::select("ID", "Expediente", "Informes", "Hecho_imputado", 
-                                     "Num_Imputacion","Sub_extremo", "Monto", "Index",
-                                     "COS_anual", "T_meses",  "Costo_evitado", "Unidad_monetaria",
-                                     "Tipo_de_cambio", "Beneficio_ilícito", "Prob_Detección",
-                                     "Multa", "Multa_Final", "Sancion_total",  "Colapsar", "year")
-
-CFinal1$Datos <- "Primera fase"
-CFinal2$Datos <- "Segunda fase"
-
-CFinal <- rbind(CFinal1, CFinal2)
-rm(CFinal1, CFinal2, Consolidado, Consolidado2)
 
 # Seleccionando las variables a usar
 
@@ -112,7 +123,6 @@ colnames(RFinal)[colnames(RFinal) == "Fecha de la Resolución...38"] <- "Fecha_R
 colnames(RFinal)[colnames(RFinal) == "N° de Resolución de Responsabilidad Administrativa"] <- "Nro_Resolucion"
 colnames(RFinal)[colnames(RFinal) == "Documento de inicio"] <- "Documento_Inicio"
 colnames(RFinal)[colnames(RFinal) == "Fecha de emisión"] <- "Fecha_Emision"
-
 
 RFinal$Index <- as.character(RFinal$Index)
 
@@ -146,11 +156,11 @@ FINAL <- FINAL %>% filter(Multa_Final != 0)
 table(FINAL$Merge)
 
 # Fusionando el Tipo de Empresa (restante: Index 7020)
-url4 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/Tipo_Empresas.xlsx"
+url8 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Bases/Exceles/Tipo_Empresas.xlsx"
 temp_file <- tempfile(fileext = ".xlsx")
-GET(url4, write_disk(temp_file, overwrite = TRUE))
+GET(url8, write_disk(temp_file, overwrite = TRUE))
 Tamaño <- read_excel(temp_file, sheet = "Final")  
-rm(temp_file, url4)
+rm(temp_file, url8)
 FINAL <-left_join(x = FINAL, y = Tamaño, by="Administrado")
 rm(Tamaño)
 #View(FINAL[is.na(FINAL$tipo_actividad), ])
@@ -160,33 +170,6 @@ table(FINAL$tipo_actividad)
 FINAL$Colapsar <- ifelse(FINAL$Colapsar == "Máximo", "Maximo", FINAL$Colapsar)
 table(FINAL$Colapsar)
 
-### ----- Otros ajustes ----- ###
-
-### Obteniendo el total de hechos imputados, extremos y sub extremos ###
-
-# Seleccionando variables a emplear
-#Extremos <- FINAL %>% dplyr::select(Informes, Num_Imputacion, Colapsar)
-
-#  245 registros con extremos y sub extremos (Anterior)
-#  350 registros con extremos y sub extremos (Actual)
-#Revision <- Extremos %>% 
-#            filter(Colapsar!="NA")
-
-#  64 hechos imputados con extremos y sub extremos (Anterior)
-#  94 hechos imputados con extremos y sub extremos (Actual)
-#Revision2 <- Revision %>%
-#  distinct(Informes, Num_Imputacion)
-
-#  37 informes con hechos imputados con extremos y sub extremos (Anterior)
-#  57 informes con hechos imputados con extremos y sub extremos (Actual)
-#Revision3 <- Revision2 %>%
-#  distinct(Informes)
-
-#rm(Extremos, Revision, Revision2, Revision3)
-
-# 797 - 245 = 552 Hechos imputados
-# 552 + 64 = 616 Hechos imputados
-
 ###################################
 ###### Fechas de informes #########
 ###################################
@@ -194,7 +177,7 @@ table(FINAL$Colapsar)
 # Bucle para descargar y leer los archivos por año
 years <- c(2022, 2023, 2024)
 for (year in years) {
-  url <- paste0("https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Fechas/Fecha_", year, ".xlsx")
+  url <- paste0("https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Fechas/Fecha_", year, ".xlsx")
   temp_file <- tempfile(fileext = ".xlsx")
   GET(url, write_disk(temp_file, overwrite = TRUE))
   assign(paste0("F", year), read_excel(temp_file, sheet = as.character(year)))
@@ -209,7 +192,7 @@ Fechas1 <- Fechas1 %>% dplyr::select(Informes, Fecha_Informe)
 
 years <- c(2022, 2023, 2024)
 for (year in years) {
-  url <- paste0("https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Fechas/Fecha_", year, "b.xlsx")
+  url <- paste0("https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Fechas/Fecha_", year, "b.xlsx")
   temp_file <- tempfile(fileext = ".xlsx")
   GET(url, write_disk(temp_file, overwrite = TRUE))
   assign(paste0("F", year), read_excel(temp_file, sheet = as.character(year)))
@@ -237,7 +220,7 @@ rm(Fechas)
 
 # Bucle para leer los archivos por año
 years <- c(2022, 2023, 2024)
-Factores <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Factores/Copia%20de%20Informes_"
+Factores <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20Finales/Informes_"
 for (year in years) {
   url <- paste0(Factores, year, ".xlsx")
   temp_file <- tempfile(fileext = ".xlsx")
@@ -248,11 +231,9 @@ for (year in years) {
 rm(Factores, year, years)
 
 # Quitando de las bases las categorías a no emplear
-G2022F<- G2022 %>%
-  filter(!Categoria_FA %in% c("Reconsideración", "Multa coercitiva", "Sin factor"))
 
-G2022F<- G2022F %>%
-  filter(!Observaciones %in% c("Eliminado de la conclusió del informe de sanción por motivo específico", "Extremo 2"))
+G2022$Observaciones <- NULL 
+G2024$Observaciones <- NULL 
 
 G2023F<- G2023 %>%
   filter(!Categoria_FA %in% c("Reconsideración", "multa coercitiva", "multas coercitivas"))
