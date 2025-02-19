@@ -48,13 +48,14 @@ GET(url6, write_disk(temp_file, overwrite = TRUE))
 Consolidado6 <- read_excel(temp_file, sheet = "Consolidado")  
 rm(temp_file, url6)
 
-
 # Carga de información de RUIAS
-url3 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Código Final/RUIAS & Dfunidos/RUIAS-CSEP.xlsx"
+url7 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20sustento/RUIAS-CSEP.xlsx"
 temp_file <- tempfile(fileext = ".xlsx")
-GET(url3, write_disk(temp_file, overwrite = TRUE))
+GET(url7, write_disk(temp_file, overwrite = TRUE))
 RUIAS <- read_excel(temp_file, sheet = "RUIAS")  
-rm(temp_file, url3)
+rm(temp_file, url7)
+
+
 
 # Quitando las observaciones que no usaremos del consolidado
 
