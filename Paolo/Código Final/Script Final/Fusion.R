@@ -10,22 +10,47 @@ rm(list = ls())
 ###### Informes de sanción ########
 ###################################
 
-# Carga de información del Consolidado 1
-url1 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/dfunido.xlsx"
+# Carga de las bases antiguas
+url1 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20Finales/Informes_2022.xlsx"
 temp_file <- tempfile(fileext = ".xlsx")
 GET(url1, write_disk(temp_file, overwrite = TRUE))
-Consolidado <- read_excel(temp_file, sheet = "Sheet 1")  
+Consolidado1 <- read_excel(temp_file, sheet = "Componentes")  
 rm(temp_file, url1)
 
-# Carga de información del Consolidado 2
-url2 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/dfunido2.xlsx"
+url2 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20Finales/Informes_2023.xlsx"
 temp_file <- tempfile(fileext = ".xlsx")
 GET(url2, write_disk(temp_file, overwrite = TRUE))
-Consolidado2 <- read_excel(temp_file, sheet = "Sheet 1")  
+Consolidado2 <- read_excel(temp_file, sheet = "Componentes")  
 rm(temp_file, url2)
 
+url3 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20Finales/Informes_2024.xlsx"
+temp_file <- tempfile(fileext = ".xlsx")
+GET(url3, write_disk(temp_file, overwrite = TRUE))
+Consolidado3 <- read_excel(temp_file, sheet = "Componentes")  
+rm(temp_file, url3)
+
+# Carga de las bases nuevas
+url4 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20Finales/Info_2022.xlsx"
+temp_file <- tempfile(fileext = ".xlsx")
+GET(url4, write_disk(temp_file, overwrite = TRUE))
+Consolidado4 <- read_excel(temp_file, sheet = "Consolidado")  
+rm(temp_file, url4)
+
+url5 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20Finales/Info_2023.xlsx"
+temp_file <- tempfile(fileext = ".xlsx")
+GET(url5, write_disk(temp_file, overwrite = TRUE))
+Consolidado5 <- read_excel(temp_file, sheet = "Consolidado")  
+rm(temp_file, url5)
+
+url6 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20Finales/Info_2024.xlsx"
+temp_file <- tempfile(fileext = ".xlsx")
+GET(url6, write_disk(temp_file, overwrite = TRUE))
+Consolidado6 <- read_excel(temp_file, sheet = "Consolidado")  
+rm(temp_file, url6)
+
+
 # Carga de información de RUIAS
-url3 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/RUIAS-CSEP.xlsx"
+url3 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Código Final/RUIAS & Dfunidos/RUIAS-CSEP.xlsx"
 temp_file <- tempfile(fileext = ".xlsx")
 GET(url3, write_disk(temp_file, overwrite = TRUE))
 RUIAS <- read_excel(temp_file, sheet = "RUIAS")  
