@@ -218,32 +218,6 @@ rm(Fechas)
 ##### Factores de graduación ######
 ###################################
 
-rm(list = ls())
-
-url8 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20Finales/Informes_2022.xlsx"
-temp_file <- tempfile(fileext = ".xlsx")
-GET(url8, write_disk(temp_file, overwrite = TRUE))
-G2022 <- read_excel(temp_file, sheet = "Graduacion")  
-G2022$Año <- 2022
-rm(temp_file, url8)
-
-url9 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20Finales/Informes_2023.xlsx"
-temp_file <- tempfile(fileext = ".xlsx")
-GET(url9, write_disk(temp_file, overwrite = TRUE))
-G2023 <- read_excel(temp_file, sheet = "Graduacion")  
-G2023$Año <- 2023
-rm(temp_file, url9)
-
-url10 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20Finales/Informes_2024.xlsx"
-temp_file <- tempfile(fileext = ".xlsx")
-GET(url10, write_disk(temp_file, overwrite = TRUE))
-G2024 <- read_excel(temp_file, sheet = "Graduacion")  
-G2024$Año <- 2024
-rm(temp_file, url10)
-
-
-table(G2024$Detalle)
-
 years <- c(2022, 2023, 2024)
 Factores <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20Finales/Informes_"
 for (year in years) {
@@ -253,7 +227,6 @@ for (year in years) {
   assign(paste0("G", year), read_excel(temp_file, sheet = "Graduacion"))
   rm(temp_file, url)
 }
-
 
 rm(Factores, year, years)
 
@@ -266,68 +239,24 @@ G2024$Observaciones <- NULL
 Aglomerado1 <- rbind(G2022, G2023, G2024)
 rm(G2022, G2023, G2024)
 
+
 table(Aglomerado1$Detalle)
-
-
-
 Aglomerado1 <- Aglomerado1 %>% 
   filter(Detalle != "Eliminar")
 
+
+table(Aglomerado1$Filtro)
 Aglomerado1 <- Aglomerado1 %>% 
   filter(Filtro=="Cálculo de multa")
 
-
-
-
-G2024F <- G2024F %>%
-  filter(!(ID == 167 & Imputacion == 4), !(ID == 179 & Imputacion == 3))
-
-G2024F <- G2024F %>%
-  filter(!ID == 71)
-
-# "Se debe eliminar por criterio del informe"
-
 # Selecionando las variables a emplear
-G2022F <- G2022F %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agravantes", "Categoria_FA", "% FA", "Imputacion")
-G2023F <- G2023F %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agravantes", "Categoria_FA", "% FA", "Imputacion")
-G2024F <- G2024F %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agravantes", "Categoria_FA", "% FA", "Imputacion")
-
-
-
-# Cargando la base de DFUNIDO
-url1 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/dfunido.xlsx"
-temp_file <- tempfile(fileext = ".xlsx")
-GET(url1, write_disk(temp_file, overwrite = TRUE))
-Consolidado <- read_excel(temp_file, sheet = "Sheet 1")  
-rm(temp_file, url1)
-
-# Seleccionando las variables
-Consolidado <- Consolidado %>% dplyr::select("Informes", "Propuesta_Multa")
-Consolidado <- Consolidado %>%
-  filter(Propuesta_Multa == "si")
-
-#Quitando duplicados
-Unicos <- Consolidado[!duplicated(Consolidado$Informes), ]
-
-# Fusionando bases
-Fusion <-left_join(x = Aglomerado, y = Unicos, by="Informes")
-rm(Consolidado, Aglomerado, Unicos)
-
-table(Fusion$Propuesta_Multa, useNA = "ifany")
-
-Fusion <- Fusion %>%
-  filter(is.na(Propuesta_Multa))
-
-Aglomerado1 <- Fusion %>%
-  filter(!(Informes == "00575-2023-OEFA/DFAI-SSAG" & Imputacion == 1))
-rm(Fusion)
-
 Aglomerado1 <- Aglomerado1 %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agravantes", "Categoria_FA", "% FA")
 table(Aglomerado1$Factores_agravantes, useNA = "ifany")
 
+
 # Importando Los nuevos Factores de la segunda tanda de informes
 years <- c(2022, 2023, 2024)
-Factores <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Factores/Info_"
+Factores <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20Finales/Info_"
 for (year in years) {
   url <- paste0(Factores, year, ".xlsx")
   temp_file <- tempfile(fileext = ".xlsx")
@@ -337,18 +266,13 @@ for (year in years) {
 }
 rm(Factores, year, years)
 
-G2022F <- G2022 %>%
-  filter(!Observaciones %in% c("Multa Coercitiva", "Propuesta de calculo de multa"))
+Aglomerado2 <- rbind(G2022, G2023, G2024)
+rm(G2022, G2023, G2024)
 
-G2023F <- G2023 %>%
-  filter(!Observaciones %in% c("Multa coercitiva", "Propuesta Calculo de Multa"))
+table(Aglomerado2$Filtro)
+Aglomerado2 <- Aglomerado2 %>% 
+  filter(Filtro=="Cálculo de multa")
 
-G2024F <- G2024 %>%
-  filter(!Observaciones %in% c("Multas Coercitivas", "Propuesta Calculo de Multa", "Recurso de Reconsideracion",
-                               "Propuesta cálculo de multa"))
-
-Aglomerado2 <- rbind(G2022F, G2023F, G2024F)
-rm(G2022,G2022F, G2023, G2023F, G2024,G2024F)
 colnames(Aglomerado2)[colnames(Aglomerado2) == "Correlativo"] <- "ID"
 Aglomerado2 <- Aglomerado2 %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agravantes", "Categoria_FA", "% FA")
 
@@ -361,8 +285,6 @@ rm(Aglomerado1, Aglomerado2)
 
 FACTORES <- FACTORES %>%
   mutate(`% FA` = ifelse(is.na(Categoria_FA), 0, `% FA`))
-
-#write.xlsx(Filtro,"D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/INFORMES_GRADUACION.xlsx")
 
 ###################################
 ###### Exportando las bases #######
@@ -381,7 +303,7 @@ addWorksheet(wb, "Factores")
 writeData(wb, "Factores", FACTORES, colNames = TRUE)
 
 # Guardardando el archivo Excel
-saveWorkbook(wb, "D:/NUEVO D/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Scripts/Bases/INFORMES_GRADUACION.xlsx", overwrite = TRUE)
+saveWorkbook(wb, "D:/LAPTOP ACER/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Código Final/Bases Finales/INFORMES_GRADUACION.xlsx", overwrite = TRUE)
 
 ###################################
 #### Estadísticas Descriptivas ####
