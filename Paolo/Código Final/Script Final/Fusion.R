@@ -228,6 +228,10 @@ for (year in years) {
   assign(paste0("G", year), read_excel(temp_file, sheet = "Graduacion"))
   rm(temp_file, url)
 }
+
+G2024$Detalle <- as.factor(G2024$Detalle)
+
+
 rm(Factores, year, years)
 
 # Quitando de las bases las categorías a no emplear
@@ -235,12 +239,23 @@ rm(Factores, year, years)
 G2022$Observaciones <- NULL 
 G2024$Observaciones <- NULL 
 
-G2023F<- G2023 %>%
-  filter(!Categoria_FA %in% c("Reconsideración", "multa coercitiva", "multas coercitivas"))
+# Haciendo un append
+Aglomerado1 <- rbind(G2022, G2023, G2024)
+rm(G2022, G2023, G2024)
 
-G2024F<- G2024 %>%
-  filter(!Categoria_FA %in% c("Multa coercitiva", "Reconsideración", "Enmienda multa coercitiva",
-                              "Medida correctiva", "Informe de enmienda"))
+table(Aglomerado1$Detalle)
+
+
+
+Aglomerado1 <- Aglomerado1 %>% 
+  filter(Detalle != "Eliminar")
+
+Aglomerado1 <- Aglomerado1 %>% 
+  filter(Filtro=="Cálculo de multa")
+
+
+
+
 G2024F <- G2024F %>%
   filter(!(ID == 167 & Imputacion == 4), !(ID == 179 & Imputacion == 3))
 
@@ -254,9 +269,7 @@ G2022F <- G2022F %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agra
 G2023F <- G2023F %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agravantes", "Categoria_FA", "% FA", "Imputacion")
 G2024F <- G2024F %>% dplyr::select("ID","Informes", "Imputacion", "Factores_agravantes", "Categoria_FA", "% FA", "Imputacion")
 
-# Haciendo un append
-Aglomerado <- rbind(G2022F, G2023F, G2024F)
-rm(G2022,G2022F, G2023, G2023F, G2024,G2024F)
+
 
 # Cargando la base de DFUNIDO
 url1 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/Scripts/Bases/dfunido.xlsx"
