@@ -242,6 +242,8 @@ G2024$Año <- 2024
 rm(temp_file, url10)
 
 
+table(G2024$Detalle)
+
 years <- c(2022, 2023, 2024)
 Factores <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20Finales/Informes_"
 for (year in years) {
