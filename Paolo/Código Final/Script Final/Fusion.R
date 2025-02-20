@@ -218,7 +218,30 @@ rm(Fechas)
 ##### Factores de graduación ######
 ###################################
 
-# Bucle para leer los archivos por año
+rm(list = ls())
+
+url8 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20Finales/Informes_2022.xlsx"
+temp_file <- tempfile(fileext = ".xlsx")
+GET(url8, write_disk(temp_file, overwrite = TRUE))
+G2022 <- read_excel(temp_file, sheet = "Graduacion")  
+G2022$Año <- 2022
+rm(temp_file, url8)
+
+url9 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20Finales/Informes_2023.xlsx"
+temp_file <- tempfile(fileext = ".xlsx")
+GET(url9, write_disk(temp_file, overwrite = TRUE))
+G2023 <- read_excel(temp_file, sheet = "Graduacion")  
+G2023$Año <- 2023
+rm(temp_file, url9)
+
+url10 <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20Finales/Informes_2024.xlsx"
+temp_file <- tempfile(fileext = ".xlsx")
+GET(url10, write_disk(temp_file, overwrite = TRUE))
+G2024 <- read_excel(temp_file, sheet = "Graduacion")  
+G2024$Año <- 2024
+rm(temp_file, url10)
+
+
 years <- c(2022, 2023, 2024)
 Factores <- "https://raw.githubusercontent.com/PaoloValcarcel/OEFA_SMER/main/Paolo/C%C3%B3digo%20Final/Bases%20Finales/Informes_"
 for (year in years) {
@@ -228,8 +251,6 @@ for (year in years) {
   assign(paste0("G", year), read_excel(temp_file, sheet = "Graduacion"))
   rm(temp_file, url)
 }
-
-G2024$Detalle <- as.factor(G2024$Detalle)
 
 
 rm(Factores, year, years)
