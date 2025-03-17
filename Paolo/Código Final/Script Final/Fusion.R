@@ -305,6 +305,8 @@ writeData(wb, "Factores", FACTORES, colNames = TRUE)
 # Guardardando el archivo Excel
 saveWorkbook(wb, "D:/LAPTOP ACER/REPOSITORIO_GITHUB/OEFA_SMER/Paolo/Código Final/Bases Finales/INFORMES_GRADUACION.xlsx", overwrite = TRUE)
 
+#Hasta acá revisar
+
 ###################################
 #### Estadísticas Descriptivas ####
 ###################################
